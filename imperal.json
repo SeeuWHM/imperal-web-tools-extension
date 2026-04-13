@@ -1,0 +1,43 @@
+{
+  "app_id": "web-tools",
+  "version": "1.0.0",
+  "capabilities": [],
+  "tools": [
+    {
+      "name": "tool_web_tools_chat",
+      "description": "Web diagnostics — DNS, SSL, WHOIS, HTTP headers grade, email SPF DMARC DKIM, blacklist 30 DNSBL, port scan, SMTP test, geo probe EU/US/SG/MD, full parallel domain audit, domain health monitors with groups and check profiles",
+      "scopes": ["*"],
+      "parameters": {
+        "message": {"type": "string", "required": false},
+        "kwargs":  {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "skeleton_refresh_web_tools",
+      "description": "Background refresh: domain monitor statuses from last scan snapshots.",
+      "scopes": [],
+      "parameters": {
+        "kwargs": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "__panel__sidebar",
+      "description": "Panel: Domain Monitoring",
+      "scopes": [],
+      "parameters": {
+        "params": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "__panel__stats",
+      "description": "Panel: Monitor Stats",
+      "scopes": [],
+      "parameters": {
+        "params": {"type": "string", "required": true}
+      }
+    }
+  ],
+  "signals": [],
+  "schedules": [],
+  "required_scopes": ["*"]
+}

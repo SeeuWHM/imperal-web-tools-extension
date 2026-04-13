@@ -1,0 +1,65 @@
+"""web-tools · Skeleton — background monitor status refresh."""
+from __future__ import annotations
+
+import datetime
+
+from app import ext
+
+
+@ext.tool(
+    "skeleton_refresh_web_tools",
+    description="Refresh web-tools monitor statuses from last scan snapshots. "
+                "Provides instant Webbee context: how many monitors are critical/warning.",
+)
+async def on_refresh(ctx, **kwargs) -> dict:
+    """Load monitors + their last snapshot statuses for instant AI context."""
+    try:
+        page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10)
+        if not page.data:
+            return {"response": {
+                "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
+            }}
+
+        monitors: dict = {}
+        critical = warning = ok = 0
+
+        for m in page.data:
+            snap_id = m.data.get("last_snapshot_id")
+            status = "unknown"
+            summary: dict = {}
+            last_run = m.data.get("last_run_at")
+
+            if snap_id:
+                snap = await ctx.store.get("wt_snapshots", snap_id)
+                if snap:
+                    status  = snap.data.get("status", "ok")
+                    summary = snap.data.get("summary", {})
+
+            if status == "critical":
+                critical += 1
+            elif status == "warning":
+                warning += 1
+            elif status == "ok":
+                ok += 1
+
+            monitors[m.id] = {
+                "name":           m.data["name"],
+                "status":         status,
+                "last_run_at":    last_run,
+                "interval_hours": m.data["interval_hours"],
+                "summary":        summary,
+            }
+
+        return {"response": {
+            "monitors":     monitors,
+            "total":        len(monitors),
+            "critical":     critical,
+            "warning":      warning,
+            "ok":           ok,
+            "last_updated": datetime.datetime.utcnow().isoformat(),
+        }}
+
+    except Exception as exc:
+        return {"response": {
+            "error": str(exc), "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
+        }}
