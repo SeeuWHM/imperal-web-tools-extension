@@ -115,7 +115,7 @@ imperal-web-tools-extension/
 
 ## Function Reference
 
-### Diagnostics (13 functions)
+### Diagnostics (12 functions)
 
 | Function | Description |
 |----------|-------------|
@@ -132,7 +132,7 @@ imperal-web-tools-extension/
 | `geo_check` | Multi-region probe from EU/US/SG/MD — dns / ping / http / ssl / traceroute / full |
 | `domain_full_check` | Full parallel audit — DNS + SSL + WHOIS + HTTP + email + blacklist + geo |
 
-### Monitoring (13 functions)
+### Monitoring (14 functions)
 
 | Function | Description |
 |----------|-------------|
@@ -149,6 +149,7 @@ imperal-web-tools-extension/
 | `run_scan` | Trigger immediate scan — stores snapshot, fires `scan.completed` event |
 | `get_scan_results` | Get last snapshot — per-domain per-check status and overall verdict |
 | `quick_check` | One-shot check from panel — result stored and shown in right panel |
+| `get_panel_data` | Panel summary for LLM context — monitors, groups, profiles counts and statuses |
 
 ---
 

@@ -1,6 +1,7 @@
-"""web-tools · Domain Groups, Check Profiles, Monitors — CRUD handlers."""
+"""web-tools · Domain Groups and Check Profiles — CRUD handlers."""
 from __future__ import annotations
 
+import asyncio
 import datetime
 from typing import Literal
 
@@ -15,7 +16,6 @@ MAX_GROUPS   = 5
 MAX_DOMAINS  = 20
 MAX_PROFILES = 5
 MAX_CHECKS   = 5
-MAX_MONITORS = 5
 
 # ─── Domain Groups ────────────────────────────────────────────────────────── #
 
@@ -57,7 +57,7 @@ class UpdateGroupParams(BaseModel):
     remove_domains: list[str] = Field(default_factory=list, description="Domains to remove")
 
 
-@chat.function("update_domain_group", action_type="write",
+@chat.function("update_domain_group", action_type="write", event="group.updated",
                description=f"Update a domain group — rename, add or remove domains (max {MAX_DOMAINS} total)")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
@@ -106,10 +106,23 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
         return ActionResult.error("Domain group not found.", retryable=False)
     name = doc.data["name"]
     await ctx.store.delete("wt_groups", params.group_id)
+
     mon_page = await ctx.store.query("wt_monitors",
-                                     where={"owner_id": ctx.user.id, "group_id": params.group_id}, limit=10)
-    for m in mon_page.data:
+                                     where={"owner_id": ctx.user.id, "group_id": params.group_id},
+                                     limit=10)
+
+    async def _delete_monitor(m):
+        snap_page = await ctx.store.query(
+            "wt_snapshots",
+            where={"owner_id": ctx.user.id, "monitor_id": m.id},
+            limit=100,
+        )
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
+                                for s in snap_page.data])
         await ctx.store.delete("wt_monitors", m.id)
+
+    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
+
     return ActionResult.success(
         data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted group '{name}' and {len(mon_page.data)} monitor(s)",
@@ -138,9 +151,10 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
         return ActionResult.error(f"Too many checks ({len(params.checks)}). Max {MAX_CHECKS}.", retryable=False)
     deduped = list(dict.fromkeys(params.checks))
     doc = await ctx.store.create("wt_profiles", {
-        "owner_id": ctx.user.id,
-        "name":     params.name[:50],
-        "checks":   deduped,
+        "owner_id":   ctx.user.id,
+        "name":       params.name[:50],
+        "checks":     deduped,
+        "created_at": datetime.datetime.utcnow().isoformat(),
     })
     return ActionResult.success(
         data={"profile_id": doc.id, "name": params.name, "checks": deduped},
@@ -175,98 +189,25 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
         return ActionResult.error("Check profile not found.", retryable=False)
     name = doc.data["name"]
     await ctx.store.delete("wt_profiles", params.profile_id)
+
     mon_page = await ctx.store.query("wt_monitors",
-                                     where={"owner_id": ctx.user.id, "profile_id": params.profile_id}, limit=10)
-    for m in mon_page.data:
+                                     where={"owner_id": ctx.user.id, "profile_id": params.profile_id},
+                                     limit=10)
+
+    async def _delete_monitor(m):
+        snap_page = await ctx.store.query(
+            "wt_snapshots",
+            where={"owner_id": ctx.user.id, "monitor_id": m.id},
+            limit=100,
+        )
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
+                                for s in snap_page.data])
         await ctx.store.delete("wt_monitors", m.id)
+
+    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
+
     return ActionResult.success(
         data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
     )
 
-
-# ─── Domain Health Monitors ───────────────────────────────────────────────── #
-
-class CreateMonitorParams(BaseModel):
-    """Create domain health monitor parameters."""
-    name: str = Field(description="Monitor name")
-    group_id: str = Field(description="Domain group ID to monitor")
-    profile_id: str = Field(description="Check profile ID defining which checks to run")
-    interval_hours: int = Field(default=24, description="How often to run checks, in hours (1/6/12/24/48/168)")
-
-
-@chat.function("create_monitor", action_type="write", event="monitor.created",
-               description=(
-                   f"Create a domain health monitor — saves a wt_monitors record that runs "
-                   f"DNS/SSL/HTTP/email checks on a domain group at a recurring interval. "
-                   f"Requires an existing domain group (group_id) and check profile (profile_id). "
-                   f"NOT an automation rule. Max {MAX_MONITORS} monitors."
-               ))
-async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
-    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
-    if count >= MAX_MONITORS:
-        return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
-    grp = await ctx.store.get("wt_groups", params.group_id)
-    if not grp or grp.data.get("owner_id") != ctx.user.id:
-        return ActionResult.error("Domain group not found.", retryable=False)
-    prf = await ctx.store.get("wt_profiles", params.profile_id)
-    if not prf or prf.data.get("owner_id") != ctx.user.id:
-        return ActionResult.error("Check profile not found.", retryable=False)
-    interval = max(1, params.interval_hours)
-    doc = await ctx.store.create("wt_monitors", {
-        "owner_id":         ctx.user.id,
-        "name":             params.name[:50],
-        "group_id":         params.group_id,
-        "profile_id":       params.profile_id,
-        "interval_hours":   interval,
-        "enabled":          True,
-        "last_run_at":      None,
-        "last_snapshot_id": None,
-    })
-    return ActionResult.success(
-        data={"monitor_id": doc.id, "name": params.name,
-              "group": grp.data["name"], "profile": prf.data["name"], "interval_hours": interval},
-        summary=f"Created domain health monitor '{params.name}' — {grp.data['name']} every {interval}h",
-    )
-
-
-@chat.function("list_monitors", action_type="read",
-               description="List all domain health monitors with group, check profile, interval, and last scan time")
-async def fn_list_monitors(ctx) -> ActionResult:
-    page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10)
-    monitors = [
-        {
-            "monitor_id":       d.id,
-            "name":             d.data["name"],
-            "group_id":         d.data["group_id"],
-            "profile_id":       d.data["profile_id"],
-            "interval_hours":   d.data["interval_hours"],
-            "enabled":          d.data["enabled"],
-            "last_run_at":      d.data.get("last_run_at"),
-            "last_snapshot_id": d.data.get("last_snapshot_id"),
-        }
-        for d in page.data
-    ]
-    return ActionResult.success(
-        data={"monitors": monitors, "total": len(monitors)},
-        summary=f"{len(monitors)} domain health monitor(s)",
-    )
-
-
-class DeleteMonitorParams(BaseModel):
-    """Delete domain health monitor parameters."""
-    monitor_id: str
-
-
-@chat.function("delete_monitor", action_type="destructive", event="monitor.deleted",
-               description="Delete a domain health monitor (does not delete the domain group or check profile)")
-async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
-    doc = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
-        return ActionResult.error("Monitor not found.", retryable=False)
-    name = doc.data["name"]
-    await ctx.store.delete("wt_monitors", params.monitor_id)
-    return ActionResult.success(
-        data={"monitor_id": params.monitor_id},
-        summary=f"Deleted domain health monitor '{name}'",
-    )

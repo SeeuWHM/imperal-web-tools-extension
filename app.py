@@ -47,4 +47,4 @@ async def health(ctx) -> dict:
             "version": ext.version,
         }
     except Exception:
-        return {"status": "ok", "version": ext.version}
+        return {"status": "degraded", "version": ext.version}

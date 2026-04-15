@@ -14,9 +14,9 @@ from imperal_sdk import ActionResult
 # ─── Helpers ──────────────────────────────────────────────────────────────── #
 
 def _check_status(check: str, data: dict) -> str:
-    """Derive ok/warning/critical from raw check result data."""
+    """Derive ok/warning/critical/unknown from raw check result data."""
     if not data or "error" in data:
-        return "warning"
+        return "unknown"  # API/network error ≠ domain problem
     if check == "blacklist":
         verdict = data.get("verdict", "clean")
         return "critical" if verdict == "critical" else ("warning" if verdict == "listed" else "ok")
@@ -52,7 +52,7 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
                 d = body.get("data") if body.get("success") else None
                 return check, {"status": _check_status(check, d or {}), "data": d}
             except Exception as exc:
-                return check, {"status": "warning", "error": str(exc)}
+                return check, {"status": "unknown", "error": str(exc)}
 
     return dict(await asyncio.gather(*[_one(c) for c in checks]))
 
@@ -89,11 +89,13 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
     domain_results = dict(await asyncio.gather(*[_domain(d) for d in domains]))
 
     all_statuses = [r["status"] for dr in domain_results.values() for r in dr.values()]
-    counts: dict[str, int] = {"ok": 0, "warning": 0, "critical": 0}
+    counts: dict[str, int] = {"ok": 0, "warning": 0, "critical": 0, "unknown": 0}
     for s in all_statuses:
         counts[s] = counts.get(s, 0) + 1
 
-    overall = "critical" if counts["critical"] else ("warning" if counts["warning"] else "ok")
+    overall = ("critical" if counts["critical"] else
+               "warning"  if counts["warning"]  else
+               "ok"       if counts["ok"]       else "unknown")
 
     snap = await ctx.store.create("wt_snapshots", {
         "owner_id":   ctx.user.id,

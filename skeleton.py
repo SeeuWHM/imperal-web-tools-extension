@@ -1,7 +1,7 @@
 """web-tools · Skeleton — background monitor status refresh."""
 from __future__ import annotations
 
-import datetime
+import asyncio
 
 from app import ext
 
@@ -20,20 +20,27 @@ async def on_refresh(ctx, **kwargs) -> dict:
                 "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
             }}
 
+        # Load all snapshots in parallel instead of sequentially
+        snap_ids = [m.data.get("last_snapshot_id") for m in page.data]
+
+        async def _get_snap(snap_id):
+            if snap_id:
+                return await ctx.store.get("wt_snapshots", snap_id)
+            return None
+
+        snaps = await asyncio.gather(*[_get_snap(sid) for sid in snap_ids])
+
         monitors: dict = {}
         critical = warning = ok = 0
 
-        for m in page.data:
-            snap_id = m.data.get("last_snapshot_id")
-            status = "unknown"
+        for m, snap in zip(page.data, snaps):
+            status   = "unknown"
             summary: dict = {}
             last_run = m.data.get("last_run_at")
 
-            if snap_id:
-                snap = await ctx.store.get("wt_snapshots", snap_id)
-                if snap:
-                    status  = snap.data.get("status", "ok")
-                    summary = snap.data.get("summary", {})
+            if snap:
+                status  = snap.data.get("status", "ok")
+                summary = snap.data.get("summary", {})
 
             if status == "critical":
                 critical += 1
@@ -51,12 +58,11 @@ async def on_refresh(ctx, **kwargs) -> dict:
             }
 
         return {"response": {
-            "monitors":     monitors,
-            "total":        len(monitors),
-            "critical":     critical,
-            "warning":      warning,
-            "ok":           ok,
-            "last_updated": datetime.datetime.utcnow().isoformat(),
+            "monitors": monitors,
+            "total":    len(monitors),
+            "critical": critical,
+            "warning":  warning,
+            "ok":       ok,
         }}
 
     except Exception as exc:
