@@ -137,11 +137,15 @@ def domain_items(domains_data: dict) -> list:
     items = []
     for domain, checks in sorted(domains_data.items()):
         statuses = [c.get("status", "unknown") for c in checks.values()]
+        has_unknown = "unknown" in statuses
         overall  = (
             "critical" if "critical" in statuses else
             "warning"  if "warning"  in statuses else
-            "ok"       if "ok"       in statuses else "unknown"
+            "ok"       if "ok" in statuses and not has_unknown else
+            "unknown"
         )
+        # "ok" only when ALL checks ran cleanly — if any check failed to run
+        # (unknown/unavailable), badge shows "—" so user knows it's incomplete
         kv = [
             {"key":   chk.upper(),
              "value": _fmt_check_value(chk, res.get("data") or {})}
