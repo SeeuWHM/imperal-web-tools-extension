@@ -26,7 +26,8 @@ def _check_status(check: str, data: dict) -> str:
     if check == "ssl":
         if not data.get("valid", True):
             return "critical"
-        return "warning" if data.get("days_until_expiry", 99) < 14 else "ok"
+        days = data.get("days_until_expiry") or data.get("days_remaining", 99)
+        return "warning" if days < 14 else "ok"
     if check in ("http", "email"):
         grade = data.get("grade", "A")
         return "critical" if grade == "F" else ("warning" if grade in ("C", "D") else "ok")
@@ -91,14 +92,28 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     domain_results = dict(await asyncio.gather(*[_domain(d) for d in domains]))
 
+    # Check-level counts (for pie chart)
     all_statuses = [r["status"] for dr in domain_results.values() for r in dr.values()]
     counts: dict[str, int] = {"ok": 0, "warning": 0, "critical": 0, "unknown": 0}
     for s in all_statuses:
         counts[s] = counts.get(s, 0) + 1
 
-    overall = ("critical" if counts["critical"] else
-               "warning"  if counts["warning"]  else
-               "ok"       if counts["ok"]       else "unknown")
+    # Domain-level counts (for "N/20 OK" display) — same logic as domain_items in UI
+    dom_lvl: list[str] = []
+    for dr in domain_results.values():
+        d_st = [r["status"] for r in dr.values()]
+        d_has_unk = "unknown" in d_st
+        dom_lvl.append(
+            "critical" if "critical" in d_st else
+            "warning"  if "warning"  in d_st else
+            "ok"       if "ok" in d_st and not d_has_unk else
+            "unknown"
+        )
+    dom_counts = {s: dom_lvl.count(s) for s in ("ok", "warning", "critical", "unknown")}
+
+    overall = ("critical" if dom_counts["critical"] else
+               "warning"  if dom_counts["warning"]  else
+               "ok"       if dom_counts["ok"]        else "unknown")
 
     snap = await ctx.store.create("wt_snapshots", {
         "owner_id":   ctx.user.id,
@@ -106,7 +121,13 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
         "status":     overall,
         "domains":    domain_results,
         "checks_run": checks,
-        "summary":    {"total_domains": len(domains), **counts},
+        "summary": {
+            "total_domains":   len(domains),
+            "domains_ok":      dom_counts["ok"],
+            "domains_warning": dom_counts["warning"],
+            "domains_critical":dom_counts["critical"],
+            "domains_unknown": dom_counts["unknown"],
+        },
         "created_at": now,
     })
     await ctx.store.update("wt_monitors", params.monitor_id, {

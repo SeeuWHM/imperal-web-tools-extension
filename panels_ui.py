@@ -63,7 +63,7 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
     if chk == "ssl":
         if not data.get("valid", True):
             return "Invalid certificate"
-        days  = data.get("days_until_expiry")
+        days  = data.get("days_until_expiry") or data.get("days_remaining")
         grade = data.get("grade", "?")
         if days is not None:
             return f"Grade {grade} · {days}d left"
@@ -113,19 +113,27 @@ def _check_subtitle(checks: dict) -> str:
         if st == "ok":
             if chk == "dns":                parts.append("DNS ✓")
             elif chk == "ssl":
-                d = data.get("days_until_expiry")
+                d = data.get("days_until_expiry") or data.get("days_remaining")
                 parts.append(f"SSL {d}d" if d is not None else "SSL ✓")
             elif chk in ("http", "email"):  parts.append(f"{lbl} {data.get('grade', '?')}")
             elif chk == "blacklist":        parts.append("BL Clean")
+            elif chk == "geo":
+                ok_r  = sum(1 for r in data.values() if isinstance(r, dict) and not r.get("error"))
+                tot_r = len(data) if isinstance(data, dict) else 0
+                parts.append(f"GEO {ok_r}/{tot_r}" if tot_r else "GEO ✓")
             else:                           parts.append(f"{short} ✓")
         elif st == "warning":
             if chk == "ssl":
-                d = data.get("days_until_expiry")
+                d = data.get("days_until_expiry") or data.get("days_remaining")
                 parts.append(f"SSL {d}d!" if d is not None else "SSL !")
             elif chk in ("http", "email"):  parts.append(f"{lbl} {data.get('grade', '?')}")
             elif chk == "blacklist":
                 n_bl = len(data.get("listed_on") or [])
                 parts.append(f"BL({n_bl})" if n_bl else "BL Listed")
+            elif chk == "geo":
+                ok_r  = sum(1 for r in data.values() if isinstance(r, dict) and not r.get("error"))
+                tot_r = len(data) if isinstance(data, dict) else 0
+                parts.append(f"GEO {ok_r}/{tot_r}!" if tot_r else "GEO !")
             else:                           parts.append(f"{short} !")
         elif st == "critical":  parts.append(f"{short} ✗")
         else:                   parts.append(f"{short} —")

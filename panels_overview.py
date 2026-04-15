@@ -126,7 +126,8 @@ async def build_overview(ctx) -> ui.UINode:
         last_run   = (m.data.get("last_run_at") or "")[:10]
         ssum       = snap.data.get("summary", {}) if snap else {}
         total      = ssum.get("total_domains", 0)
-        n_ok_dom   = ssum.get("ok", 0)
+        # prefer domain-level count; fallback for old snapshots caps at total
+        n_ok_dom   = ssum.get("domains_ok", min(ssum.get("ok", 0), total))
         pct_ok     = int(n_ok_dom / total * 100) if total else 0
 
         if total:

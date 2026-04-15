@@ -74,7 +74,8 @@ async def build_sidebar(ctx) -> ui.UINode:
 
         if skel_sum and skel_sum.get("total_domains"):
             total = skel_sum["total_domains"]
-            n_ok  = skel_sum.get("ok", 0)
+            # prefer domain-level count; fallback for old snapshots uses check-level capped at total
+            n_ok  = skel_sum.get("domains_ok", min(skel_sum.get("ok", 0), total))
             sub   = f"{grp_name} · {n_ok}/{total} OK · {last_run or 'never'}"
         else:
             sub = f"{grp_name} · {m.data['interval_hours']}h · never scanned"
