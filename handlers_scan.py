@@ -200,7 +200,9 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
                     return name, {"error": str(exc)}
 
         results = dict(await asyncio.gather(*[_fetch(n, u) for n, u in _urls.items()]))
-        result_data = {"domain": d, "preset": "full", "results": results, "created_at": now}
+        # Explicitly null out "result" so store.update (merge) clears old single-check data
+        result_data = {"domain": d, "preset": "full", "results": results,
+                       "result": None, "created_at": now}
         summary = f"Full audit for {d} — 5 checks completed"
     else:
         _single: dict[str, str] = {
@@ -217,8 +219,9 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         body = resp.json()
         if not body.get("success"):
             return ActionResult.error(body.get("error", "Check failed"), retryable=False)
+        # Explicitly null out "results" so store.update (merge) clears old full-audit data
         result_data = {"domain": d, "preset": params.preset,
-                       "result": body["data"], "created_at": now}
+                       "result": body["data"], "results": None, "created_at": now}
         summary = f"{params.preset.upper()} check for {d} — done"
 
     qpage = await ctx.store.query("wt_quick_results",
