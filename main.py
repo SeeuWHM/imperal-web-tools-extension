@@ -11,7 +11,9 @@ sys.path.insert(0, _dir)
 
 for _m in list(sys.modules):
     if _m in ("app", "handlers", "handlers_diag", "handlers_groups",
-              "handlers_monitors", "handlers_scan", "skeleton", "panels", "panels_ui"):
+              "handlers_monitors", "handlers_scan", "skeleton",
+              "panels_ui", "panels_left", "panels_overview",
+              "panels_detail", "panels_setup", "panels"):
         del sys.modules[_m]
 
 from app import ext, chat    # noqa: F401

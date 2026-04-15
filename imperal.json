@@ -1,6 +1,6 @@
 {
   "app_id": "web-tools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "capabilities": [],
   "tools": [
     {
@@ -22,15 +22,31 @@
     },
     {
       "name": "__panel__sidebar",
-      "description": "Panel: Domain Monitoring",
+      "description": "Panel left: monitor navigation + health summary",
       "scopes": [],
       "parameters": {
         "params": {"type": "string", "required": true}
       }
     },
     {
-      "name": "__panel__stats",
-      "description": "Panel: Monitor Stats",
+      "name": "__panel__overview",
+      "description": "Panel right: health dashboard — stats, bar chart, quick check, monitor cards",
+      "scopes": [],
+      "parameters": {
+        "params": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "__panel__detail",
+      "description": "Panel right: monitor detail — pie chart, domain list, settings",
+      "scopes": [],
+      "parameters": {
+        "params": {"type": "string", "required": true}
+      }
+    },
+    {
+      "name": "__panel__setup",
+      "description": "Panel right: setup wizard — domain groups, check profiles, new monitor",
       "scopes": [],
       "parameters": {
         "params": {"type": "string", "required": true}
