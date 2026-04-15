@@ -79,6 +79,8 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         if verdict == "clean":
             return "Clean"
         n = len(listed)
+        if n == 0:
+            return "Listed"
         return f"Listed on {n} {'list' if n == 1 else 'lists'}"
 
     if chk == "geo":
@@ -121,7 +123,9 @@ def _check_subtitle(checks: dict) -> str:
                 d = data.get("days_until_expiry")
                 parts.append(f"SSL {d}d!" if d is not None else "SSL !")
             elif chk in ("http", "email"):  parts.append(f"{lbl} {data.get('grade', '?')}")
-            elif chk == "blacklist":        parts.append(f"BL({len(data.get('listed_on') or [])})")
+            elif chk == "blacklist":
+                n_bl = len(data.get("listed_on") or [])
+                parts.append(f"BL({n_bl})" if n_bl else "BL Listed")
             else:                           parts.append(f"{short} !")
         elif st == "critical":  parts.append(f"{short} ✗")
         else:                   parts.append(f"{short} —")

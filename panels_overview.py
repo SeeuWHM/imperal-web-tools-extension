@@ -23,7 +23,8 @@ async def build_overview(ctx) -> ui.UINode:
         action="quick_check", submit_label="Check Now",
         children=[
             ui.Input(placeholder="domain.com or IP address...", param_name="domain"),
-            ui.Select(options=PRESET_OPTS, value="full", param_name="preset"),
+            ui.Select(options=PRESET_OPTS, param_name="preset",
+                      placeholder="Full Audit (default)"),
         ],
     )
     qpage = await ctx.store.query("wt_quick_results",
