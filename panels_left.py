@@ -21,16 +21,32 @@ async def build_sidebar(ctx) -> ui.UINode:
     skel_mons = skel.get("monitors", {})
     grp_map   = {g.id: g.data["name"] for g in grp_page.data}
 
+    # Load actual snapshot statuses directly — skeleton is cached and can be
+    # stale right after a scan (skeleton refreshes on its own schedule)
+    async def _snap_status(m):
+        sid = m.data.get("last_snapshot_id")
+        if not sid:
+            return m.id, "unknown"
+        snap = await ctx.store.get("wt_snapshots", sid)
+        return m.id, (snap.data.get("status", "unknown") if snap else "unknown")
+
+    status_pairs = await asyncio.gather(*[_snap_status(m) for m in mon_page.data])
+    live_status  = dict(status_pairs)
+
     # ── Health summary (1 line) ───────────────────────────────────────────── #
     n_total   = len(mon_page.data)
     n_crit    = sum(1 for d in skel_mons.values() if d.get("status") == "critical")
     n_scanned = sum(1 for m in mon_page.data if m.data.get("last_snapshot_id"))
     n_ok_mons = sum(1 for d in skel_mons.values() if d.get("status") == "ok")
 
+    # Compute summary from live statuses (not stale skeleton)
+    n_crit    = sum(1 for s in live_status.values() if s == "critical")
+    n_ok_live = sum(1 for s in live_status.values() if s == "ok")
+
     if n_crit:
         health: ui.UINode = ui.Alert(
             type="error", message=f"{n_crit} critical issue(s) detected")
-    elif n_total and n_scanned == n_total and n_ok_mons == n_total:
+    elif n_total and n_scanned == n_total and n_ok_live == n_total:
         health = ui.Alert(type="success", message="All monitors healthy")
     else:
         count_lbl = f"{n_total} monitor{'s' if n_total != 1 else ''}"
@@ -67,7 +83,7 @@ async def build_sidebar(ctx) -> ui.UINode:
             id=m.id,
             title=m.data["name"],
             subtitle=sub,
-            badge=status_badge(status),
+            badge=status_badge(live_status.get(m.id, "unknown")),
             meta=last_run or "—",
             on_click=ui.Call("__panel__detail", monitor_id=m.id),
             actions=[

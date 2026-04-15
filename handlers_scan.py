@@ -15,8 +15,11 @@ from imperal_sdk import ActionResult
 
 def _check_status(check: str, data: dict) -> str:
     """Derive ok/warning/critical/unknown from raw check result data."""
-    if not data or "error" in data:
+    if not data or data.get("error"):
         return "unknown"  # API/network error ≠ domain problem
+    # NOTE: use data.get("error") not "error" in data — SSL/HTTP APIs always
+    # include "error": null in the response even on success; key presence check
+    # would wrongly treat every successful SSL/HTTP result as unavailable
     if check == "blacklist":
         verdict = data.get("verdict", "clean")
         return "critical" if verdict == "critical" else ("warning" if verdict == "listed" else "ok")

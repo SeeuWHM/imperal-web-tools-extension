@@ -50,7 +50,7 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
     Used by both quick_kv (right-panel card) and domain_items (expandable detail).
     Returns a plain string — no status prefix needed, the value speaks for itself.
     """
-    if not data or "error" in data:
+    if not data or data.get("error"):
         return "Unavailable"
 
     if chk == "dns":
