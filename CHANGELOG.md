@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] — 2026-04-16
+
+### Added
+- **`@ext.schedule`** — `wt_monitor_runner`, cron `0 * * * *` (SDK v1.5.4 pattern). Global hourly check: queries all enabled monitors, runs those where `last_run_at + interval_hours ≤ now`. Previous snapshot deleted on each run to prevent store bloat.
+- **Setup as SlideOver** — `__panel__setup` now renders as `ui.SlideOver(width="lg")`. Opens as a slide-over popup, closes back to overview.
+- **TagInput for domains** — `ui.TagInput` (fixed in SDK v1.5.4) replaces plain CSV input. Type domain + Enter or Space to add as a tag; × to remove. Works in both create and edit forms.
+- **Toggle+Tooltip check selection** — `ui.Toggle` + `ui.Tooltip` per check type in profile create form. Hover ℹ icon to see what each check returns (grade, days, regions, etc.). Defaults: SSL/HTTP/Email/Blacklist ON.
+- **Monitors list in Setup** — existing monitors now shown in Setup panel with delete actions (was missing).
+- **Group edit in Setup** — existing groups expand to show TagInput edit form.
+
+### Changed
+- Sidebar: removed "+ New Monitor" button — single "Setup" entry point.
+- `update_domain_group`: accepts `domains: list[str]` for full replacement from TagInput.
+- `create_check_profile`: accepts individual bool params (`ssl`, `http`, `email`, etc.) from toggles.
+- `delete_monitor`: now cascade-deletes snapshots (was orphaning them).
+- `skeleton.py`: default status fixed from `"ok"` → `"unknown"` for missing field.
+- Interval display: `every 168h` → `every week`, `every 48h` → `every 2 days`, etc.
+- Bar chart in overview: now includes Unknown column; monitor names show ellipsis on truncation.
+
 ## [1.0.0] — 2026-04-13
 
 ### Added
