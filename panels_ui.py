@@ -35,7 +35,19 @@ INTERVAL_OPTS = [
     {"value": "168", "label": "Every week"},
 ]
 
-# Check type labels and tooltip descriptions (used in setup panel)
+# MultiSelect options for check profile forms (label includes brief description)
+PROFILE_CHECK_OPTS = [
+    {"value": "ssl",       "label": "SSL Certificate — grade A-F, expiry days"},
+    {"value": "http",      "label": "HTTP Headers — security grade A-F"},
+    {"value": "email",     "label": "Email Delivery — SPF · DMARC · DKIM"},
+    {"value": "blacklist", "label": "Blacklist — 30 DNSBL lists"},
+    {"value": "geo",       "label": "Geo Probe — EU · US · SG · MD"},
+    {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
+    {"value": "dns",       "label": "DNS Records — A · MX · NS · TXT"},
+]
+PROFILE_CHECK_DEFAULTS = ["ssl", "http", "email", "blacklist"]
+
+# Check type labels and tooltip descriptions (reference)
 CHECKS_INFO: dict[str, tuple[str, str]] = {
     "ssl":       ("SSL Certificate",      "Grade A-F · days until expiry · issuer & chain"),
     "http":      ("HTTP Headers",         "Security grade A-F · HSTS, CSP, X-Frame-Options, XCTO"),

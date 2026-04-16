@@ -14,20 +14,10 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import INTERVAL_OPTS, fmt_interval
+from panels_ui import INTERVAL_OPTS, fmt_interval, PROFILE_CHECK_OPTS, PROFILE_CHECK_DEFAULTS
 
-# ─── Check options for MultiSelect ───────────────────────────────────────── #
-
-_CHECK_OPTS = [
-    {"value": "ssl",       "label": "SSL Certificate — grade A-F, expiry days"},
-    {"value": "http",      "label": "HTTP Headers — security grade A-F"},
-    {"value": "email",     "label": "Email Delivery — SPF · DMARC · DKIM"},
-    {"value": "blacklist", "label": "Blacklist — 30 DNSBL lists"},
-    {"value": "geo",       "label": "Geo Probe — EU · US · SG · MD"},
-    {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
-    {"value": "dns",       "label": "DNS Records — A · MX · NS · TXT"},
-]
-_DEFAULT_CHECKS = ["ssl", "http", "email", "blacklist"]
+_CHECK_OPTS      = PROFILE_CHECK_OPTS
+_DEFAULT_CHECKS  = PROFILE_CHECK_DEFAULTS
 
 
 # ─── Section builders ─────────────────────────────────────────────────────── #
