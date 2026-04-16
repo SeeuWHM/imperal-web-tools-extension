@@ -1,11 +1,12 @@
-"""web-tools · Setup panel — Stack layout (no SlideOver) with sticky close header.
+"""web-tools · Setup panel — groups, profiles, monitors.
 
-Uses ui.MultiSelect for check profiles (direct Form child — reliable).
-Uses ui.TagInput for domain groups (fixed in SDK v1.5.4).
+No auto-refresh (_SETUP_REFRESH="") — prevents the Panel shell from navigating
+away from setup on every save/delete. Instead the header has a ↺ Refresh button.
 
-Why Stack, not SlideOver: SlideOver re-animates on every panel refresh (e.g. after
-group.created fires), making it look like the popup closes and reopens. Stack
-re-renders in place — stays open between actions, closes only when user clicks ✕.
+MultiSelect fix: Form.defaults pre-populates checks so the payload isn't empty
+when user hasn't touched the MultiSelect yet.
+
+Icon fix: CheckSquare → ClipboardList (CheckSquare not in Lucide used by platform).
 """
 from __future__ import annotations
 
@@ -64,7 +65,8 @@ def _groups_section(grp_data: list) -> ui.UINode:
         create_form = ui.Form(
             action="create_domain_group", submit_label="Create Group",
             children=[
-                ui.Input(placeholder="Group name — e.g. Production, Staging",
+                ui.Text(content="Group name *", variant="label"),
+                ui.Input(placeholder="e.g. Production, Staging",
                          param_name="name"),
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
@@ -72,8 +74,7 @@ def _groups_section(grp_data: list) -> ui.UINode:
                     placeholder="domain.com — press Enter to add",
                     param_name="domains",
                 ),
-                ui.Text(content="Max 20 domains · press Enter to add each domain",
-                        variant="caption"),
+                ui.Text(content="Max 20 domains per group", variant="caption"),
             ],
         )
 
@@ -85,8 +86,8 @@ def _groups_section(grp_data: list) -> ui.UINode:
             action="update_domain_group", submit_label="Save",
             defaults={"group_id": g.id},
             children=[
-                ui.Input(value=g.data["name"], param_name="name",
-                         placeholder="Group name"),
+                ui.Text(content="Group name", variant="label"),
+                ui.Input(value=g.data["name"], param_name="name"),
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(values=domains,
                             placeholder="add domain, press Enter…",
@@ -129,8 +130,11 @@ def _profiles_section(prf_data: list) -> ui.UINode:
     else:
         create_form = ui.Form(
             action="create_check_profile", submit_label="Create Profile",
+            # defaults ensures checks are sent even if user doesn't touch MultiSelect
+            defaults={"checks": _DEFAULT_CHECKS},
             children=[
-                ui.Input(placeholder="Profile name — e.g. Full Audit, Quick SSL",
+                ui.Text(content="Profile name *", variant="label"),
+                ui.Input(placeholder="e.g. Full Audit, Quick SSL Check",
                          param_name="name"),
                 ui.Text(content="Checks to run (select at least 1, max 5)",
                         variant="label"),
@@ -148,10 +152,10 @@ def _profiles_section(prf_data: list) -> ui.UINode:
         checks = p.data.get("checks", [])
         edit_form = ui.Form(
             action="update_check_profile", submit_label="Save",
-            defaults={"profile_id": p.id},
+            defaults={"profile_id": p.id, "checks": checks},
             children=[
-                ui.Input(value=p.data["name"], param_name="name",
-                         placeholder="Profile name"),
+                ui.Text(content="Profile name", variant="label"),
+                ui.Input(value=p.data["name"], param_name="name"),
                 ui.Text(content="Checks to run", variant="label"),
                 ui.MultiSelect(
                     options=_CHECK_OPTS,
@@ -165,7 +169,7 @@ def _profiles_section(prf_data: list) -> ui.UINode:
             id=p.id,
             title=p.data["name"],
             subtitle=", ".join(checks) if checks else "—",
-            icon="CheckSquare",
+            icon="ClipboardList",
             expandable=True,
             expanded_content=[edit_form],
             actions=[{
@@ -177,7 +181,7 @@ def _profiles_section(prf_data: list) -> ui.UINode:
 
     prf_list: ui.UINode = (
         ui.List(items=items) if items
-        else ui.Empty(message="No profiles yet", icon="CheckSquare")
+        else ui.Empty(message="No profiles yet", icon="ClipboardList")
     )
     return ui.Stack([
         ui.Divider(label=f"CHECK PROFILES  {n}/5"),
@@ -203,7 +207,8 @@ def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
         create_form = ui.Form(
             action="create_monitor", submit_label="Create Monitor",
             children=[
-                ui.Input(placeholder="Monitor name", param_name="name"),
+                ui.Text(content="Monitor name *", variant="label"),
+                ui.Input(placeholder="e.g. Production Health", param_name="name"),
                 ui.Select(
                     options=[{"value": g.id, "label": g.data["name"]}
                              for g in grp_data],
@@ -222,11 +227,25 @@ def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
     items = []
     for m in mon_data:
         grp_name = grp_map.get(m.data.get("group_id", ""), "—")
+        edit_form = ui.Form(
+            action="update_monitor", submit_label="Save",
+            defaults={"monitor_id": m.id},
+            children=[
+                ui.Text(content="Monitor name", variant="label"),
+                ui.Input(value=m.data["name"], param_name="name"),
+                ui.Text(content="Check interval", variant="label"),
+                ui.Select(options=INTERVAL_OPTS,
+                          value=str(m.data["interval_hours"]),
+                          param_name="interval_hours"),
+            ],
+        )
         items.append(ui.ListItem(
             id=m.id,
             title=m.data["name"],
             subtitle=f"{grp_name} · {fmt_interval(m.data['interval_hours'])}",
             icon="Activity",
+            expandable=True,
+            expanded_content=[edit_form],
             actions=[{
                 "icon": "Trash2", "label": "Delete",
                 "on_click": ui.Call("delete_monitor", monitor_id=m.id),
@@ -250,7 +269,7 @@ def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
 # ─── Main builder ─────────────────────────────────────────────────────────── #
 
 async def build_setup(ctx, show_form: str = "") -> ui.UINode:
-    """Setup panel as Stack (not SlideOver) — stays open on refresh, closes on ✕ only."""
+    """Setup panel — stays open between saves (no auto-refresh). Use ↺ to refresh."""
     grp_page, prf_page, mon_page = await asyncio.gather(
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
@@ -265,8 +284,13 @@ async def build_setup(ctx, show_form: str = "") -> ui.UINode:
             ui.Text(content="Web Tools Setup", variant="subheading"),
             ui.Text(content="Groups · profiles · monitors", variant="caption"),
         ], gap=0),
-        ui.Button("Close", icon="X", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview")),
+        ui.Stack([
+            ui.Button("↺", variant="ghost", size="sm",
+                      on_click=ui.Call("__panel__setup"),
+                      icon="RefreshCw"),
+            ui.Button("Close", icon="X", variant="ghost", size="sm",
+                      on_click=ui.Call("__panel__overview")),
+        ], direction="horizontal", gap=1),
     ], direction="horizontal", justify="between", align="center", sticky=True)
 
     return ui.Stack([

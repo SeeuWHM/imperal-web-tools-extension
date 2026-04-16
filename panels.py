@@ -18,11 +18,9 @@ _RIGHT_REFRESH = (
     "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
     "quick.completed"
 )
-_SETUP_REFRESH = (
-    "on_event:group.created,group.deleted,group.updated,"
-    "profile.created,profile.deleted,profile.updated,"
-    "monitor.created,monitor.deleted"
-)
+# Setup panel has NO auto-refresh — refreshing on events causes the Panel shell
+# to navigate away from the setup view. User uses the ↺ Refresh button instead.
+_SETUP_REFRESH = ""
 
 
 # ─── Panel handlers ───────────────────────────────────────────────────────── #
