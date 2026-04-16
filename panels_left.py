@@ -5,7 +5,7 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge
+from panels_ui import status_badge, fmt_interval
 
 
 # ─── Sidebar builder ──────────────────────────────────────────────────────── #
@@ -76,7 +76,7 @@ async def build_sidebar(ctx) -> ui.UINode:
             n_ok  = skel_sum.get("domains_ok", min(skel_sum.get("ok", 0), total))
             sub   = f"{grp_name} · {n_ok}/{total} OK · {last_run or 'never'}"
         else:
-            sub = f"{grp_name} · {m.data['interval_hours']}h · never scanned"
+            sub = f"{grp_name} · {fmt_interval(m.data['interval_hours'])} · never scanned"
 
         mon_items.append(ui.ListItem(
             id=m.id,

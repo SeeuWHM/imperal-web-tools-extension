@@ -259,39 +259,3 @@ def quick_kv(q: dict) -> list:
 
     return []
 
-# ─── Setup list builders ─────────────────────────────────────────────────── #
-
-def group_items(grp_page_data: list) -> list:
-    """ListItem per domain group — shows domain count, offers delete action."""
-    return [
-        ui.ListItem(
-            id=g.id,
-            title=g.data["name"],
-            subtitle=f"{len(g.data.get('domains', []))} domain(s)",
-            icon="Globe",
-            actions=[
-                {"icon": "Trash2", "label": "Delete",
-                 "on_click": ui.Call("delete_domain_group", group_id=g.id),
-                 "confirm": f"Delete group '{g.data['name']}' and all its monitors?"},
-            ],
-        )
-        for g in grp_page_data
-    ]
-
-
-def profile_items(prf_page_data: list) -> list:
-    """ListItem per check profile — shows check types, offers delete action."""
-    return [
-        ui.ListItem(
-            id=p.id,
-            title=p.data["name"],
-            subtitle=", ".join(p.data.get("checks", [])),
-            icon="CheckSquare",
-            actions=[
-                {"icon": "Trash2", "label": "Delete",
-                 "on_click": ui.Call("delete_check_profile", profile_id=p.id),
-                 "confirm": f"Delete profile '{p.data['name']}' and all its monitors?"},
-            ],
-        )
-        for p in prf_page_data
-    ]

@@ -129,6 +129,7 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
                "warning"  if dom_counts["warning"]  else
                "ok"       if dom_counts["ok"]        else "unknown")
 
+    old_snap_id = mon.data.get("last_snapshot_id")
     snap = await ctx.store.create("wt_snapshots", {
         "owner_id":   ctx.user.id,
         "monitor_id": params.monitor_id,
@@ -148,6 +149,11 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
         "last_run_at":      now,
         "last_snapshot_id": snap.id,
     })
+    if old_snap_id:
+        try:
+            await ctx.store.delete("wt_snapshots", old_snap_id)
+        except Exception:
+            pass
 
     issues = counts["warning"] + counts["critical"]
     return ActionResult.success(
