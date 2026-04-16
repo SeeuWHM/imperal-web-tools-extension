@@ -23,9 +23,9 @@ class CreateGroupParams(BaseModel):
     """Create domain group parameters."""
     name: str = Field(description="Group name")
     domains: list[str] = Field(default_factory=list,
-                               description=f"Domain names to monitor (max {MAX_DOMAINS})")
+                               description=f"Domain names (max {MAX_DOMAINS}). From TagInput or chat.")
     domains_csv: str = Field(default="",
-                             description="Comma/newline-separated domains (panel form fallback)")
+                             description="Comma/newline-separated domains (legacy CSV fallback)")
     description: str = ""
 
 
@@ -61,8 +61,10 @@ class UpdateGroupParams(BaseModel):
     """Update domain group parameters."""
     group_id: str
     name: str = Field(default="", description="New name (empty = keep current)")
-    add_domains: list[str] = Field(default_factory=list, description="Domains to add")
-    remove_domains: list[str] = Field(default_factory=list, description="Domains to remove")
+    domains: list[str] = Field(default_factory=list,
+                               description="Full replacement domain list (from TagInput panel edit)")
+    add_domains: list[str] = Field(default_factory=list, description="Domains to add (chat)")
+    remove_domains: list[str] = Field(default_factory=list, description="Domains to remove (chat)")
 
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
@@ -71,18 +73,26 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.id:
         return ActionResult.error("Domain group not found.", retryable=False)
-    domains = set(doc.data["domains"])
-    domains -= set(params.remove_domains)
-    domains |= set(params.add_domains)
-    if len(domains) > MAX_DOMAINS:
-        return ActionResult.error(f"Too many domains ({len(domains)}). Max {MAX_DOMAINS}.", retryable=False)
-    patch: dict = {"domains": list(domains)}
+    if params.domains:
+        # Full replacement from TagInput panel edit
+        new_domains = [d.strip() for d in params.domains if d.strip()]
+    elif params.add_domains or params.remove_domains:
+        # Incremental update from chat
+        existing = set(doc.data["domains"])
+        existing -= set(params.remove_domains)
+        existing |= set(params.add_domains)
+        new_domains = list(existing)
+    else:
+        new_domains = doc.data["domains"]  # no domain change
+    if len(new_domains) > MAX_DOMAINS:
+        return ActionResult.error(f"Too many domains ({len(new_domains)}). Max {MAX_DOMAINS}.", retryable=False)
+    patch: dict = {"domains": new_domains}
     if params.name:
         patch["name"] = params.name[:50]
     updated = await ctx.store.update("wt_groups", params.group_id, patch)
     return ActionResult.success(
-        data={"group_id": params.group_id, "name": updated.data["name"], "domains": list(domains)},
-        summary=f"Updated domain group '{updated.data['name']}' — {len(domains)} domain(s)",
+        data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains},
+        summary=f"Updated domain group '{updated.data['name']}' — {len(new_domains)} domain(s)",
     )
 
 
@@ -145,19 +155,30 @@ _VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo"}
 class CreateProfileParams(BaseModel):
     """Create check profile parameters."""
     name: str = Field(description="Profile name")
-    checks: list[str] = Field(
-        default_factory=list,
-        description=f"Check types (max {MAX_CHECKS}): dns/ssl/whois/http/email/blacklist/geo"
-    )
-    checks_csv: str = Field(default="",
-                            description="Comma-separated check types (panel form fallback)")
+    # Panel form: individual toggles per check type (v1.5.4 SDK)
+    ssl:       bool = Field(default=False)
+    http:      bool = Field(default=False)
+    email:     bool = Field(default=False)
+    blacklist: bool = Field(default=False)
+    geo:       bool = Field(default=False)
+    whois:     bool = Field(default=False)
+    dns:       bool = Field(default=False)
+    # Chat/AI: list of check names
+    checks: list[str] = Field(default_factory=list,
+                              description=f"Check types (max {MAX_CHECKS}): dns/ssl/whois/http/email/blacklist/geo")
+    checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
 
 
 @chat.function("create_check_profile", action_type="write", event="profile.created",
                description=f"Create a check profile — defines which diagnostics to run per domain health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
-    # Panel form sends checks_csv (plain text); chat sends checks (list)
-    check_list = [c for c in params.checks if c in _VALID_CHECKS]
+    _BOOL_KEYS = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
+    # 1. Panel form: individual bool toggles
+    check_list = [k for k in _BOOL_KEYS if getattr(params, k, False)]
+    # 2. Chat/AI: list of check names
+    if not check_list and params.checks:
+        check_list = [c for c in params.checks if c in _VALID_CHECKS]
+    # 3. Legacy CSV fallback
     if not check_list and params.checks_csv:
         check_list = [c.strip() for c in params.checks_csv.split(",")
                       if c.strip() in _VALID_CHECKS]

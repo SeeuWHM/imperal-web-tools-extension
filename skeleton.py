@@ -39,7 +39,7 @@ async def on_refresh(ctx, **kwargs) -> dict:
             last_run = m.data.get("last_run_at")
 
             if snap:
-                status  = snap.data.get("status", "ok")
+                status  = snap.data.get("status", "unknown")
                 summary = snap.data.get("summary", {})
 
             if status == "critical":

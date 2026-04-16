@@ -35,6 +35,27 @@ INTERVAL_OPTS = [
     {"value": "168", "label": "Every week"},
 ]
 
+# Check type labels and tooltip descriptions (used in setup panel)
+CHECKS_INFO: dict[str, tuple[str, str]] = {
+    "ssl":       ("SSL Certificate",      "Grade A-F · days until expiry · issuer & chain"),
+    "http":      ("HTTP Headers",         "Security grade A-F · HSTS, CSP, X-Frame-Options, XCTO"),
+    "email":     ("Email Deliverability", "SPF · DMARC · DKIM grade A-F · catches delivery issues"),
+    "blacklist": ("Blacklist",            "IP vs 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) · clean / listed"),
+    "geo":       ("Geo Probe",            "Availability from 4 regions: EU · US · SG · MD"),
+    "whois":     ("WHOIS",               "Domain registrar · expiry date · nameservers"),
+    "dns":       ("DNS Records",          "A · MX · NS · TXT record lookup · basic DNS health"),
+}
+
+
+def fmt_interval(hours: int) -> str:
+    """Human-readable interval: 168 → 'every week', 48 → 'every 2 days'."""
+    _map = {1: "every hour", 6: "every 6h", 12: "every 12h",
+            24: "every day", 48: "every 2 days", 168: "every week"}
+    if hours in _map:
+        return _map[hours]
+    return f"every {hours}h" if hours < 24 else f"every {hours // 24}d"
+
+
 # ─── Status helpers ───────────────────────────────────────────────────────── #
 
 def status_badge(status: str) -> ui.Badge:

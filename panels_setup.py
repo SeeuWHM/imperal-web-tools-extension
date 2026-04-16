@@ -1,21 +1,202 @@
-"""web-tools · Right panel: setup — groups, profiles, monitors."""
+"""web-tools · Setup panel — SlideOver with TagInput domains and toggle check types.
+
+Requires SDK v1.5.4+ (TagInput and SlideOver fixed).
+"""
 from __future__ import annotations
 
 import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import CHECKS_OPTS, INTERVAL_OPTS, group_items, profile_items
+from panels_ui import CHECKS_INFO, INTERVAL_OPTS, fmt_interval
 
 
-# ─── Setup builder ────────────────────────────────────────────────────────── #
+# ─── Check toggle rows ────────────────────────────────────────────────────── #
+
+def _check_toggles(selected: list[str] | None = None) -> list:
+    """One Toggle+Tooltip row per check type. Defaults: ssl/http/email/blacklist ON."""
+    defaults = {"ssl", "http", "email", "blacklist"}
+    rows = []
+    for key, (label, tip) in CHECKS_INFO.items():
+        is_on = key in (selected if selected is not None else defaults)
+        rows.append(ui.Stack([
+            ui.Toggle(label=label, param_name=key, value=is_on),
+            ui.Tooltip(content=tip,
+                       children=ui.Icon("Info", size=13, color="text-gray-400")),
+        ], direction="horizontal", gap=2, align="center"))
+    return rows
+
+
+# ─── Section builders ─────────────────────────────────────────────────────── #
+
+def _onboarding(has_grp: bool, has_prf: bool, has_mon: bool) -> ui.UINode:
+    if has_grp and has_prf and has_mon:
+        return ui.Alert(type="success", message="All set — groups, profiles, and monitors created.")
+    steps = [
+        ui.Text(content="✓ Domain group created" if has_grp
+                else "① Add a domain group — enter domains to monitor",
+                variant="caption"),
+        ui.Text(content="✓ Check profile created" if has_prf
+                else "② Create a check profile — choose which checks to run",
+                variant="caption"),
+        ui.Text(content="✓ Monitor created" if has_mon
+                else "③ Create a monitor — link group + profile and set schedule",
+                variant="caption"),
+    ]
+    return ui.Stack(steps, gap=1)
+
+
+def _groups_section(grp_data: list) -> ui.UINode:
+    n = len(grp_data)
+    if n >= 5:
+        create_form: ui.UINode = ui.Alert(type="info", message="5/5 groups used — delete one to add more.")
+    else:
+        create_form = ui.Form(
+            action="create_domain_group", submit_label="Create Group",
+            children=[
+                ui.Input(placeholder="Group name — e.g. Production, Staging", param_name="name"),
+                ui.Text(content="Domains", variant="label"),
+                ui.TagInput(
+                    values=[],
+                    placeholder="domain.com — press Enter or Space to add",
+                    param_name="domains",
+                ),
+                ui.Text(content="Max 20 domains per group", variant="caption"),
+            ],
+        )
+
+    items = []
+    for g in grp_data:
+        domains = g.data.get("domains", [])
+        edit_form = ui.Form(
+            action="update_domain_group", submit_label="Save Changes",
+            defaults={"group_id": g.id},
+            children=[
+                ui.Input(value=g.data["name"], param_name="name", placeholder="Group name"),
+                ui.Text(content="Domains", variant="label"),
+                ui.TagInput(values=domains,
+                            placeholder="add domain and press Enter...",
+                            param_name="domains"),
+            ],
+        )
+        items.append(ui.ListItem(
+            id=g.id,
+            title=g.data["name"],
+            subtitle=f"{len(domains)} domain(s): {', '.join(domains[:3])}" +
+                     ("…" if len(domains) > 3 else ""),
+            icon="Globe",
+            expandable=True,
+            expanded_content=[edit_form],
+            actions=[{
+                "icon": "Trash2", "label": "Delete",
+                "on_click": ui.Call("delete_domain_group", group_id=g.id),
+                "confirm": f"Delete '{g.data['name']}' and all its monitors?",
+            }],
+        ))
+
+    grp_list: ui.UINode = (ui.List(items=items) if items
+                           else ui.Empty(message="No groups yet", icon="Globe"))
+    return ui.Stack([
+        ui.Divider(label=f"DOMAIN GROUPS  {n}/5"),
+        ui.Accordion(sections=[{"id": "new_grp", "title": "+ Add Group", "children": [create_form]}]),
+        grp_list,
+    ], gap=2)
+
+
+def _profiles_section(prf_data: list) -> ui.UINode:
+    n = len(prf_data)
+    if n >= 5:
+        create_form: ui.UINode = ui.Alert(type="info", message="5/5 profiles used — delete one to add more.")
+    else:
+        create_form = ui.Form(
+            action="create_check_profile", submit_label="Create Profile",
+            children=[
+                ui.Input(placeholder="Profile name — e.g. Full Audit, Quick SSL",
+                         param_name="name"),
+                ui.Text(content="Which checks to run (select at least 1, max 5)",
+                        variant="label"),
+                *_check_toggles(),
+            ],
+        )
+
+    items = []
+    for p in prf_data:
+        checks = p.data.get("checks", [])
+        items.append(ui.ListItem(
+            id=p.id,
+            title=p.data["name"],
+            subtitle=", ".join(checks) if checks else "—",
+            icon="CheckSquare",
+            actions=[{
+                "icon": "Trash2", "label": "Delete",
+                "on_click": ui.Call("delete_check_profile", profile_id=p.id),
+                "confirm": f"Delete '{p.data['name']}' and all its monitors?",
+            }],
+        ))
+
+    prf_list: ui.UINode = (ui.List(items=items) if items
+                           else ui.Empty(message="No profiles yet", icon="CheckSquare"))
+    return ui.Stack([
+        ui.Divider(label=f"CHECK PROFILES  {n}/5"),
+        ui.Accordion(sections=[{"id": "new_prf", "title": "+ Add Profile", "children": [create_form]}]),
+        prf_list,
+    ], gap=2)
+
+
+def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
+                       has_grp: bool, has_prf: bool) -> ui.UINode:
+    n = len(mon_data)
+    grp_map = {g.id: g.data["name"] for g in grp_data}
+
+    if not has_grp or not has_prf:
+        create_form: ui.UINode = ui.Alert(
+            type="info", message="Create a domain group and check profile first.")
+    elif n >= 5:
+        create_form = ui.Alert(type="info", message="5/5 monitors used — delete one to add more.")
+    else:
+        create_form = ui.Form(
+            action="create_monitor", submit_label="Create Monitor",
+            children=[
+                ui.Input(placeholder="Monitor name", param_name="name"),
+                ui.Select(options=[{"value": g.id, "label": g.data["name"]}
+                                   for g in grp_data],
+                          placeholder="Domain group…", param_name="group_id"),
+                ui.Select(options=[{"value": p.id, "label": p.data["name"]}
+                                   for p in prf_data],
+                          placeholder="Check profile…", param_name="profile_id"),
+                ui.Select(options=INTERVAL_OPTS, value="24", param_name="interval_hours"),
+            ],
+        )
+
+    items = []
+    for m in mon_data:
+        grp_name = grp_map.get(m.data.get("group_id", ""), "—")
+        items.append(ui.ListItem(
+            id=m.id,
+            title=m.data["name"],
+            subtitle=f"{grp_name} · {fmt_interval(m.data['interval_hours'])}",
+            icon="Activity",
+            actions=[{
+                "icon": "Trash2", "label": "Delete",
+                "on_click": ui.Call("delete_monitor", monitor_id=m.id),
+                "confirm": f"Delete monitor '{m.data['name']}'?",
+            }],
+        ))
+
+    mon_list: ui.UINode = (ui.List(items=items) if items
+                           else ui.Empty(message="No monitors yet", icon="Activity"))
+    return ui.Stack([
+        ui.Divider(label=f"MONITORS  {n}/5"),
+        ui.Accordion(sections=[{"id": "new_mon", "title": "+ Add Monitor",
+                                 "children": [create_form]}]),
+        mon_list,
+    ], gap=2)
+
+
+# ─── Main builder ─────────────────────────────────────────────────────────── #
 
 async def build_setup(ctx, show_form: str = "") -> ui.UINode:
-    """Setup view — domain groups, check profiles, monitors.
-    Only uses confirmed-stable SDK components (Stack, Divider, Accordion,
-    Form, Input, Select, TagInput, MultiSelect, List, Empty, Alert, Text, Button).
-    No ui.Section / ui.Timeline — they cause e.map crashes on frontend.
-    """
+    """Setup as a SlideOver — groups, profiles, monitors. Requires SDK v1.5.4+."""
     grp_page, prf_page, mon_page = await asyncio.gather(
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
@@ -25,139 +206,18 @@ async def build_setup(ctx, show_form: str = "") -> ui.UINode:
     has_prf = bool(prf_page.data)
     has_mon = bool(mon_page.data)
 
-    # ── Header ────────────────────────────────────────────────────────────── #
-    header = ui.Stack([
-        ui.Button("← Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview")),
-        ui.Text(content="Setup", variant="subheading"),
-    ], direction="horizontal", gap=2, justify="between")
+    content = ui.Stack([
+        _onboarding(has_grp, has_prf, has_mon),
+        _groups_section(grp_page.data),
+        _profiles_section(prf_page.data),
+        _monitors_section(grp_page.data, prf_page.data, mon_page.data, has_grp, has_prf),
+    ], gap=3)
 
-    # ── Onboarding steps (text only — no ui.Timeline) ────────────────────── #
-    onboarding: list = []
-    if not (has_grp and has_prf and has_mon):
-        steps = []
-        steps.append(ui.Text(
-            content=("✓ Domain Group created" if has_grp
-                     else "① Create a Domain Group — add domains to monitor"),
-            variant="caption",
-        ))
-        steps.append(ui.Text(
-            content=("✓ Check Profile created" if has_prf
-                     else "② Create a Check Profile — choose which checks to run"),
-            variant="caption",
-        ))
-        steps.append(ui.Text(
-            content=("✓ Monitor created" if has_mon
-                     else "③ Create a Monitor — set schedule and launch"),
-            variant="caption",
-        ))
-        onboarding = [ui.Stack(steps, gap=1)]
-
-    # ── Domain Groups ─────────────────────────────────────────────────────── #
-    new_grp_form: ui.UINode
-    if len(grp_page.data) >= 5:
-        new_grp_form = ui.Alert(type="info", message="Limit reached: 5 groups max.")
-    else:
-        new_grp_form = ui.Form(
-            action="create_domain_group", submit_label="Create Group",
-            children=[
-                ui.Input(placeholder="Group name", param_name="name"),
-                ui.Input(
-                    placeholder="domain1.com, domain2.com, domain3.com ...",
-                    param_name="domains_csv",
-                ),
-                ui.Text(content="Separate domains with commas (max 20)",
-                        variant="caption"),
-            ],
-        )
-
-    grp_list: ui.UINode = (ui.List(items=group_items(grp_page.data))
-                           if grp_page.data
-                           else ui.Empty(message="No groups yet", icon="Globe"))
-
-    groups_block = ui.Stack([
-        ui.Divider(label="DOMAIN GROUPS"),
-        ui.Text(content=f"{len(grp_page.data)}/5 groups used", variant="caption"),
-        ui.Accordion(sections=[
-            {"id": "new_grp", "title": "+ Add Group",
-             "children": [new_grp_form]},
-        ]),
-        grp_list,
-    ])
-
-    # ── Check Profiles ────────────────────────────────────────────────────── #
-    new_prf_form: ui.UINode
-    if len(prf_page.data) >= 5:
-        new_prf_form = ui.Alert(type="info", message="Limit reached: 5 profiles max.")
-    else:
-        new_prf_form = ui.Form(
-            action="create_check_profile", submit_label="Create Profile",
-            children=[
-                ui.Input(placeholder="Profile name", param_name="name"),
-                ui.Input(
-                    placeholder="dns, ssl, http, email, blacklist, geo, whois",
-                    param_name="checks_csv",
-                ),
-                ui.Text(content="Comma-separated check types (max 5)",
-                        variant="caption"),
-            ],
-        )
-
-    prf_list: ui.UINode = (ui.List(items=profile_items(prf_page.data))
-                           if prf_page.data
-                           else ui.Empty(message="No profiles yet",
-                                         icon="CheckSquare"))
-
-    profiles_block = ui.Stack([
-        ui.Divider(label="CHECK PROFILES"),
-        ui.Text(content=f"{len(prf_page.data)}/5 profiles used", variant="caption"),
-        ui.Accordion(sections=[
-            {"id": "new_prf", "title": "+ Add Profile",
-             "children": [new_prf_form]},
-        ]),
-        prf_list,
-    ])
-
-    # ── Monitors ──────────────────────────────────────────────────────────── #
-    new_mon_form: ui.UINode
-    if not has_grp or not has_prf:
-        new_mon_form = ui.Alert(
-            type="info",
-            message="Create a domain group and check profile first.",
-        )
-    elif len(mon_page.data) >= 5:
-        new_mon_form = ui.Alert(type="info", message="Limit reached: 5 monitors max.")
-    else:
-        new_mon_form = ui.Form(
-            action="create_monitor", submit_label="Create Monitor",
-            children=[
-                ui.Input(placeholder="Monitor name", param_name="name"),
-                ui.Select(
-                    options=[{"value": g.id, "label": g.data["name"]}
-                             for g in grp_page.data],
-                    placeholder="Domain group...", param_name="group_id"),
-                ui.Select(
-                    options=[{"value": p.id, "label": p.data["name"]}
-                             for p in prf_page.data],
-                    placeholder="Check profile...", param_name="profile_id"),
-                ui.Select(options=INTERVAL_OPTS, value="24",
-                          param_name="interval_hours"),
-            ],
-        )
-
-    monitors_block = ui.Stack([
-        ui.Divider(label="MONITORS"),
-        ui.Text(content=f"{len(mon_page.data)}/5 monitors used", variant="caption"),
-        ui.Accordion(sections=[
-            {"id": "new_mon", "title": "+ Add Monitor",
-             "children": [new_mon_form]},
-        ]),
-    ])
-
-    return ui.Stack([
-        header,
-        *onboarding,
-        groups_block,
-        profiles_block,
-        monitors_block,
-    ])
+    return ui.SlideOver(
+        title="Web Tools Setup",
+        subtitle="Domain groups · check profiles · monitors",
+        width="lg",
+        open=True,
+        children=[content],
+        on_close=ui.Call("__panel__overview"),
+    )

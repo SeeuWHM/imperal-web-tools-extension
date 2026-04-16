@@ -127,6 +127,14 @@ async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     if not doc or doc.data.get("owner_id") != ctx.user.id:
         return ActionResult.error("Monitor not found.", retryable=False)
     name = doc.data["name"]
+    # Cascade: delete all snapshots for this monitor
+    snap_page = await ctx.store.query("wt_snapshots",
+                                      where={"owner_id": ctx.user.id,
+                                             "monitor_id": params.monitor_id},
+                                      limit=200)
+    if snap_page.data:
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
+                                for s in snap_page.data])
     await ctx.store.delete("wt_monitors", params.monitor_id)
     return ActionResult.success(
         data={"monitor_id": params.monitor_id},

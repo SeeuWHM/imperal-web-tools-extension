@@ -56,7 +56,7 @@ async def build_sidebar(ctx) -> ui.UINode:
             health,
             ui.Divider(),
             ui.Empty(message="No monitors yet", icon="Monitor"),
-            ui.Button("Get Started →", icon="ArrowRight", variant="primary",
+            ui.Button("Set Up Web Tools", icon="Settings", variant="primary",
                       full_width=True,
                       on_click=ui.Call("__panel__setup")),
         ])
@@ -99,12 +99,7 @@ async def build_sidebar(ctx) -> ui.UINode:
         ui.Divider(label="MONITORS"),
         ui.List(items=mon_items),
         ui.Divider(),
-        ui.Stack([
-            ui.Button("+ New Monitor", icon="Plus", variant="ghost",
-                      size="sm", full_width=True,
-                      on_click=ui.Call("__panel__setup", show_form="new_monitor")),
-            ui.Button("Setup", icon="Settings", variant="ghost",
-                      size="sm", full_width=True,
-                      on_click=ui.Call("__panel__setup")),
-        ], gap=1),
+        ui.Button("Setup", icon="Settings", variant="ghost",
+                  size="sm", full_width=True,
+                  on_click=ui.Call("__panel__setup")),
     ])

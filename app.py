@@ -9,7 +9,7 @@ from imperal_sdk.chat import ChatExtension
 
 # ─── Extension Setup ──────────────────────────────────────────────────────── #
 
-ext = Extension("web-tools", version="1.1.0")
+ext = Extension("web-tools", version="1.2.0")
 
 # URL of the web-tools-api backend. Override via env var for self-hosted deployments.
 WEB_TOOLS_URL = os.getenv("WEB_TOOLS_API_URL", "https://api.webhostmost.com/web-tools")

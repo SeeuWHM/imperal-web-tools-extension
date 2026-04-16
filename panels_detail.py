@@ -5,7 +5,7 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge, domain_items, INTERVAL_OPTS
+from panels_ui import status_badge, domain_items, INTERVAL_OPTS, fmt_interval
 
 
 # ─── Detail builder ───────────────────────────────────────────────────────── #
@@ -47,7 +47,7 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     ], direction="horizontal", gap=2, justify="between", sticky=True)
 
     caption = ui.Text(
-        content=f"{grp_name} · Last scan: {last} · every {mon.data['interval_hours']}h",
+        content=f"{grp_name} · Last scan: {last} · {fmt_interval(mon.data['interval_hours'])}",
         variant="caption",
     )
 

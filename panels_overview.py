@@ -5,7 +5,7 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge, quick_kv, PRESET_OPTS
+from panels_ui import status_badge, quick_kv, PRESET_OPTS, fmt_interval
 
 
 # ─── Overview builder ─────────────────────────────────────────────────────── #
@@ -87,10 +87,11 @@ async def build_overview(ctx) -> ui.UINode:
             ssum = snap.data.get("summary", {})
             if ssum.get("total_domains"):
                 chart_data.append({
-                    "name":     m.data["name"][:14],
+                    "name":     m.data["name"][:12] + ("…" if len(m.data["name"]) > 12 else ""),
                     "OK":       ssum.get("domains_ok", 0),
                     "Warning":  ssum.get("domains_warning", 0),
                     "Critical": ssum.get("domains_critical", 0),
+                    "Unknown":  ssum.get("domains_unknown", 0),
                 })
 
     chart_block: list = []
@@ -145,7 +146,7 @@ async def build_overview(ctx) -> ui.UINode:
 
         mon_cards.append(ui.Card(
             title=m.data["name"],
-            subtitle=f"{grp_name} · every {m.data['interval_hours']}h",
+            subtitle=f"{grp_name} · {fmt_interval(m.data['interval_hours'])}",
             content=card_content,
             footer=ui.Stack([
                 ui.Text(content=f"Last: {last_run or 'Never'}", variant="caption"),

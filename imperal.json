@@ -1,6 +1,6 @@
 {
   "app_id": "web-tools",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "capabilities": [],
   "tools": [
     {
@@ -54,6 +54,12 @@
     }
   ],
   "signals": [],
-  "schedules": [],
+  "schedules": [
+    {
+      "name": "wt_monitor_runner",
+      "cron": "0 * * * *",
+      "description": "Hourly: runs overdue domain health monitors across all users"
+    }
+  ],
   "required_scopes": ["*"]
 }
