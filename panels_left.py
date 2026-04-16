@@ -35,11 +35,9 @@ async def build_sidebar(ctx) -> ui.UINode:
 
     # ── Health summary (1 line) ───────────────────────────────────────────── #
     n_total   = len(mon_page.data)
-    n_crit    = sum(1 for d in skel_mons.values() if d.get("status") == "critical")
     n_scanned = sum(1 for m in mon_page.data if m.data.get("last_snapshot_id"))
-    n_ok_mons = sum(1 for d in skel_mons.values() if d.get("status") == "ok")
 
-    # Compute summary from live statuses (not stale skeleton)
+    # Use live snapshot statuses — skeleton can be stale right after a scan
     n_crit    = sum(1 for s in live_status.values() if s == "critical")
     n_ok_live = sum(1 for s in live_status.values() if s == "ok")
 

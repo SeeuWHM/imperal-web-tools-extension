@@ -88,9 +88,9 @@ async def build_overview(ctx) -> ui.UINode:
             if ssum.get("total_domains"):
                 chart_data.append({
                     "name":     m.data["name"][:14],
-                    "OK":       ssum.get("ok", 0),
-                    "Warning":  ssum.get("warning", 0),
-                    "Critical": ssum.get("critical", 0),
+                    "OK":       ssum.get("domains_ok", 0),
+                    "Warning":  ssum.get("domains_warning", 0),
+                    "Critical": ssum.get("domains_critical", 0),
                 })
 
     chart_block: list = []

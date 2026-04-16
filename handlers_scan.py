@@ -31,6 +31,20 @@ def _check_status(check: str, data: dict) -> str:
     if check in ("http", "email"):
         grade = data.get("grade", "A")
         return "critical" if grade == "F" else ("warning" if grade in ("C", "D") else "ok")
+    if check == "geo":
+        # Geo data is {dns: {regions: {...}}, http: {regions: {...}}, ssl: {regions: {...}}}
+        # Use http regions as the availability signal (most representative)
+        regions = data.get("http", {}).get("regions", {})
+        if not regions:
+            # Fallback: try dns regions
+            regions = data.get("dns", {}).get("regions", {})
+        total = len(regions)
+        if total > 0:
+            ok = sum(1 for r in regions.values()
+                     if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+            if ok / total < 0.6:
+                return "warning"
+        return "ok"
     return "ok"
 
 

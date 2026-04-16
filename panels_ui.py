@@ -57,8 +57,12 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         records = data.get("records", {})
         if isinstance(records, dict):
             types = [t for t, v in records.items() if v]
-            return f"Found ({', '.join(types[:5])})" if types else "Resolves"
-        return "Resolves"
+            if not types:
+                return "No records"
+            if types == ["NS"] or (len(types) == 1 and types[0] == "NS"):
+                return "Found (NS only)"
+            return f"Found ({', '.join(types[:5])})"
+        return "No records"
 
     if chk == "ssl":
         if not data.get("valid", True):
@@ -84,9 +88,23 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         return f"Listed on {n} {'list' if n == 1 else 'lists'}"
 
     if chk == "geo":
-        regions = data if isinstance(data, dict) else {}
+        # Geo data is {dns: {regions: {...}}, http: {regions: {...}}, ssl: {...}}
+        # Use http regions as availability signal; fall back to dns regions
+        regions = (data.get("http", {}).get("regions") or
+                   data.get("dns", {}).get("regions") or {})
+        if not regions and isinstance(data, dict):
+            # Quick-check single-probe: data IS the flat regions dict
+            flat_ok = all(
+                v.get("available", True) for v in data.values()
+                if isinstance(v, dict) and "region" in v
+            )
+            region_items = [v for v in data.values()
+                            if isinstance(v, dict) and "region" in v]
+            if region_items:
+                ok = sum(1 for r in region_items if not r.get("error") and r.get("available", True))
+                return f"{ok}/{len(region_items)} regions reachable"
         ok = sum(1 for r in regions.values()
-                 if isinstance(r, dict) and not r.get("error"))
+                 if isinstance(r, dict) and not r.get("error") and r.get("available", True))
         total = len(regions)
         return f"{ok}/{total} regions reachable" if total else "OK"
 
@@ -118,8 +136,11 @@ def _check_subtitle(checks: dict) -> str:
             elif chk in ("http", "email"):  parts.append(f"{lbl} {data.get('grade', '?')}")
             elif chk == "blacklist":        parts.append("BL Clean")
             elif chk == "geo":
-                ok_r  = sum(1 for r in data.values() if isinstance(r, dict) and not r.get("error"))
-                tot_r = len(data) if isinstance(data, dict) else 0
+                geo_r = (data.get("http", {}).get("regions") or
+                         data.get("dns", {}).get("regions") or {})
+                ok_r  = sum(1 for r in geo_r.values()
+                            if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                tot_r = len(geo_r)
                 parts.append(f"GEO {ok_r}/{tot_r}" if tot_r else "GEO ✓")
             else:                           parts.append(f"{short} ✓")
         elif st == "warning":
@@ -131,8 +152,11 @@ def _check_subtitle(checks: dict) -> str:
                 n_bl = len(data.get("listed_on") or [])
                 parts.append(f"BL({n_bl})" if n_bl else "BL Listed")
             elif chk == "geo":
-                ok_r  = sum(1 for r in data.values() if isinstance(r, dict) and not r.get("error"))
-                tot_r = len(data) if isinstance(data, dict) else 0
+                geo_r = (data.get("http", {}).get("regions") or
+                         data.get("dns", {}).get("regions") or {})
+                ok_r  = sum(1 for r in geo_r.values()
+                            if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                tot_r = len(geo_r)
                 parts.append(f"GEO {ok_r}/{tot_r}!" if tot_r else "GEO !")
             else:                           parts.append(f"{short} !")
         elif st == "critical":  parts.append(f"{short} ✗")
