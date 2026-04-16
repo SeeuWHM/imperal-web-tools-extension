@@ -3,9 +3,17 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+# Minimal domain validation: at least one dot, letters/digits/hyphens on each side.
+# Not a strict TLD check — catches obvious typos like "example", "a..b", "-bad".
+_DOMAIN_RE = re.compile(
+    r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?'
+    r'(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$'
+)
 
 from app import chat
 from imperal_sdk import ActionResult
@@ -42,6 +50,13 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
         return ActionResult.error(f"Limit reached: {MAX_GROUPS} domain groups max. Delete one first.", retryable=False)
     if not domain_list:
         return ActionResult.error("At least one domain is required.", retryable=False)
+    invalid = [d for d in domain_list if not _DOMAIN_RE.match(d)]
+    if invalid:
+        examples = ", ".join(invalid[:3]) + ("…" if len(invalid) > 3 else "")
+        return ActionResult.error(
+            f"Invalid domain format: {examples}. Expected: domain.tld (e.g. example.com)",
+            retryable=False,
+        )
     if len(domain_list) > MAX_DOMAINS:
         return ActionResult.error(f"Too many domains ({len(domain_list)}). Max {MAX_DOMAINS} per group.", retryable=False)
     doc = await ctx.store.create("wt_groups", {
@@ -84,6 +99,14 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
         new_domains = list(existing)
     else:
         new_domains = doc.data["domains"]  # no domain change
+    if new_domains:
+        invalid = [d for d in new_domains if not _DOMAIN_RE.match(d)]
+        if invalid:
+            examples = ", ".join(invalid[:3]) + ("…" if len(invalid) > 3 else "")
+            return ActionResult.error(
+                f"Invalid domain format: {examples}. Expected: domain.tld",
+                retryable=False,
+            )
     if len(new_domains) > MAX_DOMAINS:
         return ActionResult.error(f"Too many domains ({len(new_domains)}). Max {MAX_DOMAINS}.", retryable=False)
     patch: dict = {"domains": new_domains}
@@ -155,30 +178,20 @@ _VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo"}
 class CreateProfileParams(BaseModel):
     """Create check profile parameters."""
     name: str = Field(description="Profile name")
-    # Panel form: individual toggles per check type (v1.5.4 SDK)
-    ssl:       bool = Field(default=False)
-    http:      bool = Field(default=False)
-    email:     bool = Field(default=False)
-    blacklist: bool = Field(default=False)
-    geo:       bool = Field(default=False)
-    whois:     bool = Field(default=False)
-    dns:       bool = Field(default=False)
-    # Chat/AI: list of check names
-    checks: list[str] = Field(default_factory=list,
-                              description=f"Check types (max {MAX_CHECKS}): dns/ssl/whois/http/email/blacklist/geo")
+    # Panel form: list from ui.MultiSelect (direct Form child — reliable)
+    checks: list[str] = Field(
+        default_factory=list,
+        description=f"Check types (max {MAX_CHECKS}): ssl/http/email/blacklist/geo/whois/dns",
+    )
     checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
 
 
 @chat.function("create_check_profile", action_type="write", event="profile.created",
                description=f"Create a check profile — defines which diagnostics to run per domain health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
-    _BOOL_KEYS = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
-    # 1. Panel form: individual bool toggles
-    check_list = [k for k in _BOOL_KEYS if getattr(params, k, False)]
-    # 2. Chat/AI: list of check names
-    if not check_list and params.checks:
-        check_list = [c for c in params.checks if c in _VALID_CHECKS]
-    # 3. Legacy CSV fallback
+    # 1. Panel form: MultiSelect sends list directly
+    check_list = [c for c in params.checks if c in _VALID_CHECKS]
+    # 2. Legacy CSV fallback (chat forms, old code)
     if not check_list and params.checks_csv:
         check_list = [c.strip() for c in params.checks_csv.split(",")
                       if c.strip() in _VALID_CHECKS]
@@ -253,3 +266,40 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
     )
 
+
+# ─── Update Check Profile ─────────────────────────────────────────────────── #
+
+class UpdateProfileParams(BaseModel):
+    """Update check profile — rename or change check types."""
+    profile_id: str
+    name: str = Field(default="", description="New name (empty = keep current)")
+    checks: list[str] = Field(default_factory=list,
+                              description="New check list from MultiSelect (empty = keep current)")
+
+
+@chat.function("update_check_profile", action_type="write", event="profile.updated",
+               description="Update a check profile — rename or change which checks it runs")
+async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
+    doc = await ctx.store.get("wt_profiles", params.profile_id)
+    if not doc or doc.data.get("owner_id") != ctx.user.id:
+        return ActionResult.error("Check profile not found.", retryable=False)
+    patch: dict = {}
+    if params.checks:
+        check_list = [c for c in params.checks if c in _VALID_CHECKS]
+        if not check_list:
+            return ActionResult.error(
+                f"No valid checks. Allowed: {', '.join(sorted(_VALID_CHECKS))}", retryable=False)
+        if len(check_list) > MAX_CHECKS:
+            return ActionResult.error(f"Too many checks. Max {MAX_CHECKS}.", retryable=False)
+        patch["checks"] = list(dict.fromkeys(check_list))
+    if params.name:
+        patch["name"] = params.name[:50]
+    if not patch:
+        return ActionResult.error("Nothing to update — provide name or checks.", retryable=False)
+    updated = await ctx.store.update("wt_profiles", params.profile_id, patch)
+    checks_str = ", ".join(updated.data.get("checks", []))
+    return ActionResult.success(
+        data={"profile_id": params.profile_id, "name": updated.data["name"],
+              "checks": updated.data.get("checks", [])},
+        summary=f"Updated profile '{updated.data['name']}': {checks_str}",
+    )

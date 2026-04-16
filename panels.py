@@ -20,7 +20,8 @@ _RIGHT_REFRESH = (
 )
 _SETUP_REFRESH = (
     "on_event:group.created,group.deleted,group.updated,"
-    "profile.created,profile.deleted,monitor.created,monitor.deleted"
+    "profile.created,profile.deleted,profile.updated,"
+    "monitor.created,monitor.deleted"
 )
 
 
