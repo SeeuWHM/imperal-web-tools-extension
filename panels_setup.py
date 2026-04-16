@@ -62,8 +62,12 @@ async def build_setup(ctx, show_form: str = "") -> ui.UINode:
             action="create_domain_group", submit_label="Create Group",
             children=[
                 ui.Input(placeholder="Group name", param_name="name"),
-                ui.TagInput(placeholder="Type domain, press Enter...",
-                            param_name="domains"),
+                ui.Input(
+                    placeholder="domain1.com, domain2.com, domain3.com ...",
+                    param_name="domains_csv",
+                ),
+                ui.Text(content="Separate domains with commas (max 20)",
+                        variant="caption"),
             ],
         )
 
@@ -90,9 +94,12 @@ async def build_setup(ctx, show_form: str = "") -> ui.UINode:
             action="create_check_profile", submit_label="Create Profile",
             children=[
                 ui.Input(placeholder="Profile name", param_name="name"),
-                ui.MultiSelect(options=CHECKS_OPTS,
-                               placeholder="Select checks...",
-                               param_name="checks"),
+                ui.Input(
+                    placeholder="dns, ssl, http, email, blacklist, geo, whois",
+                    param_name="checks_csv",
+                ),
+                ui.Text(content="Comma-separated check types (max 5)",
+                        variant="caption"),
             ],
         )
 
