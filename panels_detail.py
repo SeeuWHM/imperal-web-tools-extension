@@ -22,9 +22,9 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     if not mon:
         return ui.Stack([
             ui.Button("← Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview")),
+                      on_click=ui.Call("__panel__overview", show_setup="")),
             ui.Error(message="Monitor not found.",
-                     retry=ui.Call("__panel__overview")),
+                     retry=ui.Call("__panel__overview", show_setup="")),
         ])
 
     snap_id  = mon.data.get("last_snapshot_id")
@@ -37,7 +37,7 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     # ── Sticky toolbar ────────────────────────────────────────────────────── #
     toolbar = ui.Stack([
         ui.Button("Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview")),
+                  on_click=ui.Call("__panel__overview", show_setup="")),
         ui.Stack([
             ui.Text(content=mon.data["name"], variant="subheading"),
             status_badge(status),

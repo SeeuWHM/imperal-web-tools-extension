@@ -14,13 +14,15 @@ _LEFT_REFRESH = (
     "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
     "group.created,group.deleted,group.updated,profile.created,profile.deleted"
 )
+# Right panel handles BOTH overview and setup (show_setup param).
+# refreshAll() after any action preserves show_setup via param merging —
+# so setup stays visible after saves/deletes without navigating away.
 _RIGHT_REFRESH = (
     "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
-    "quick.completed"
+    "quick.completed,group.created,group.deleted,group.updated,"
+    "profile.created,profile.deleted,profile.updated"
 )
-# Setup panel has NO auto-refresh — refreshing on events causes the Panel shell
-# to navigate away from the setup view. User uses the ↺ Refresh button instead.
-_SETUP_REFRESH = ""
+_SETUP_REFRESH = ""  # Kept but unused — setup now lives inside panel_overview
 
 
 # ─── Panel handlers ───────────────────────────────────────────────────────── #
@@ -34,8 +36,14 @@ async def panel_sidebar(ctx, **kwargs):
 
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",
            refresh=_RIGHT_REFRESH)
-async def panel_overview(ctx, **kwargs):
-    """Right: stats, health chart, quick check, monitor cards."""
+async def panel_overview(ctx, show_setup: str = "", **kwargs):
+    """Right: overview dashboard, OR setup when show_setup='1'.
+
+    Setup lives here so refreshAll() after any action preserves show_setup param
+    via param merging — setup stays open between saves/deletes.
+    """
+    if show_setup:
+        return await build_setup(ctx)
     return await build_overview(ctx)
 
 

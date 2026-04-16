@@ -51,7 +51,7 @@ async def build_overview(ctx) -> ui.UINode:
             ui.Empty(
                 message="Set up a domain group, check profile, and monitor to start.",
                 icon="Monitor",
-                action=ui.Call("__panel__setup"),
+                action=ui.Call("__panel__overview", show_setup="1"),
             ),
         ])
 
@@ -87,7 +87,9 @@ async def build_overview(ctx) -> ui.UINode:
             ssum = snap.data.get("summary", {})
             if ssum.get("total_domains"):
                 chart_data.append({
-                    "name":     m.data["name"][:12] + ("…" if len(m.data["name"]) > 12 else ""),
+                    "name":     (m.data["name"][:11].rstrip() + "…"
+                                 if len(m.data["name"]) > 12
+                                 else m.data["name"]),
                     "OK":       ssum.get("domains_ok", 0),
                     "Warning":  ssum.get("domains_warning", 0),
                     "Critical": ssum.get("domains_critical", 0),
