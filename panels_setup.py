@@ -15,13 +15,6 @@ from panels_ui import INTERVAL_OPTS, fmt_interval, PROFILE_CHECK_OPTS, PROFILE_C
 _CHECK_OPTS     = PROFILE_CHECK_OPTS
 _DEFAULT_CHECKS = PROFILE_CHECK_DEFAULTS
 
-# Matches _DOMAIN_RE in handlers_groups.py — client-side gate before server validation.
-_DOMAIN_VALIDATE = (
-    r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?"
-    r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$"
-)
-_DOMAIN_VALIDATE_MSG = "Enter a valid domain: example.com or sub.example.co.uk"
-
 
 # ─── Section builders ─────────────────────────────────────────────────────── #
 
@@ -64,11 +57,8 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
                     values=[],
-                    placeholder="domain.com — Enter, Space or comma to add",
+                    placeholder="domain.com — press Enter to add",
                     param_name="domains",
-                    delimiters=[" ", ",", "\t"],
-                    validate=_DOMAIN_VALIDATE,
-                    validate_message=_DOMAIN_VALIDATE_MSG,
                 ),
                 ui.Text(content="Max 20 domains per group", variant="caption"),
             ],
@@ -87,11 +77,8 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
                     values=domains,
-                    placeholder="domain.com — Enter, Space or comma to add",
+                    placeholder="domain.com — press Enter to add",
                     param_name="domains",
-                    delimiters=[" ", ",", "\t"],
-                    validate=_DOMAIN_VALIDATE,
-                    validate_message=_DOMAIN_VALIDATE_MSG,
                 ),
             ],
         )

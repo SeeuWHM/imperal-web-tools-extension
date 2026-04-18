@@ -100,15 +100,7 @@ async def build_overview(ctx) -> ui.UINode:
     if chart_data:
         chart_block = [
             ui.Text(content="Domain Health by Monitor", variant="label"),
-            ui.Chart(
-                data=chart_data, type="bar", x_key="name", height=160,
-                colors={
-                    "OK":       "#22c55e",
-                    "Warning":  "#eab308",
-                    "Critical": "#ef4444",
-                    "Unknown":  "#6b7280",
-                },
-            ),
+            ui.Chart(data=chart_data, type="bar", x_key="name", height=160),
         ]
 
     # ── Critical alert ────────────────────────────────────────────────────── #
