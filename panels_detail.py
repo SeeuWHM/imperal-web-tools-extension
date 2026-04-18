@@ -22,9 +22,9 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     if not mon:
         return ui.Stack([
             ui.Button("← Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview", show_setup="")),
+                      on_click=ui.Call("__panel__overview")),
             ui.Error(message="Monitor not found.",
-                     retry=ui.Call("__panel__overview", show_setup="")),
+                     retry=ui.Call("__panel__overview")),
         ])
 
     snap_id  = mon.data.get("last_snapshot_id")
@@ -37,7 +37,7 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     # ── Sticky toolbar ────────────────────────────────────────────────────── #
     toolbar = ui.Stack([
         ui.Button("Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview", show_setup="")),
+                  on_click=ui.Call("__panel__overview")),
         ui.Stack([
             ui.Text(content=mon.data["name"], variant="subheading"),
             status_badge(status),
@@ -89,7 +89,15 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     ] if v]
     chart_block: list = []
     if pie_data:
-        chart_block = [ui.Chart(data=pie_data, type="pie", x_key="status", height=180)]
+        chart_block = [ui.Chart(
+            data=pie_data, type="pie", x_key="status", height=180,
+            colors={
+                "OK":          "#22c55e",
+                "Warning":     "#eab308",
+                "Critical":    "#ef4444",
+                "Unavailable": "#6b7280",
+            },
+        )]
 
     summary = ui.Text(
         content=(f"{len(domains)} domains · {n_ok} OK"

@@ -51,7 +51,7 @@ async def build_overview(ctx) -> ui.UINode:
             ui.Empty(
                 message="Set up a domain group, check profile, and monitor to start.",
                 icon="Monitor",
-                action=ui.Call("__panel__overview", show_setup="1"),
+                action=ui.Call("__panel__setup"),
             ),
         ])
 
@@ -100,7 +100,15 @@ async def build_overview(ctx) -> ui.UINode:
     if chart_data:
         chart_block = [
             ui.Text(content="Domain Health by Monitor", variant="label"),
-            ui.Chart(data=chart_data, type="bar", x_key="name", height=160),
+            ui.Chart(
+                data=chart_data, type="bar", x_key="name", height=160,
+                colors={
+                    "OK":       "#22c55e",
+                    "Warning":  "#eab308",
+                    "Critical": "#ef4444",
+                    "Unknown":  "#6b7280",
+                },
+            ),
         ]
 
     # ── Critical alert ────────────────────────────────────────────────────── #
@@ -138,7 +146,13 @@ async def build_overview(ctx) -> ui.UINode:
                 status_badge(mon_status),
                 ui.Text(content=f"{n_ok_dom}/{total} domains OK", variant="caption"),
             ], direction="horizontal", gap=2)
-            progress: ui.UINode = ui.Progress(value=pct_ok, variant="bar")
+            _pct_color = "red" if pct_ok < 40 else "orange" if pct_ok < 70 else "green"
+            progress: ui.UINode = ui.Progress(
+                value=pct_ok,
+                label=f"{pct_ok}%",
+                variant="bar",
+                color=_pct_color,
+            )
             card_content: ui.UINode = ui.Stack([health_line, progress])
         else:
             card_content = ui.Stack([

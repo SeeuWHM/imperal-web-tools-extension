@@ -58,7 +58,7 @@ async def build_sidebar(ctx) -> ui.UINode:
             ui.Empty(message="No monitors yet", icon="Monitor"),
             ui.Button("Set Up Web Tools", icon="Settings", variant="primary",
                       full_width=True,
-                      on_click=ui.Call("__panel__overview", show_setup="1")),
+                      on_click=ui.Call("__panel__setup")),
         ])
 
     # ── Monitor list ──────────────────────────────────────────────────────── #
@@ -101,5 +101,5 @@ async def build_sidebar(ctx) -> ui.UINode:
         ui.Divider(),
         ui.Button("Setup", icon="Settings", variant="ghost",
                   size="sm", full_width=True,
-                  on_click=ui.Call("__panel__overview", show_setup="1")),
+                  on_click=ui.Call("__panel__setup")),
     ])

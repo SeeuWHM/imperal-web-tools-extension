@@ -1,12 +1,8 @@
-"""web-tools · Setup panel — groups, profiles, monitors.
+"""web-tools · Setup panel — domain groups, check profiles, monitors.
 
-No auto-refresh (_SETUP_REFRESH="") — prevents the Panel shell from navigating
-away from setup on every save/delete. Instead the header has a ↺ Refresh button.
-
-MultiSelect fix: Form.defaults pre-populates checks so the payload isn't empty
-when user hasn't touched the MultiSelect yet.
-
-Icon fix: CheckSquare → ClipboardList (CheckSquare not in Lucide used by platform).
+Auto-refreshes via _SETUP_REFRESH events (group/profile/monitor created/updated/deleted).
+No manual refresh button needed — platform preserves panel on refreshAll (GAP-1 fixed).
+Close navigates to __panel__overview.
 """
 from __future__ import annotations
 
@@ -16,8 +12,15 @@ from imperal_sdk import ui
 
 from panels_ui import INTERVAL_OPTS, fmt_interval, PROFILE_CHECK_OPTS, PROFILE_CHECK_DEFAULTS
 
-_CHECK_OPTS      = PROFILE_CHECK_OPTS
-_DEFAULT_CHECKS  = PROFILE_CHECK_DEFAULTS
+_CHECK_OPTS     = PROFILE_CHECK_OPTS
+_DEFAULT_CHECKS = PROFILE_CHECK_DEFAULTS
+
+# Matches _DOMAIN_RE in handlers_groups.py — client-side gate before server validation.
+_DOMAIN_VALIDATE = (
+    r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?"
+    r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$"
+)
+_DOMAIN_VALIDATE_MSG = "Enter a valid domain: example.com or sub.example.co.uk"
 
 
 # ─── Section builders ─────────────────────────────────────────────────────── #
@@ -61,8 +64,11 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
                     values=[],
-                    placeholder="domain.com — press Enter to add",
+                    placeholder="domain.com — Enter, Space or comma to add",
                     param_name="domains",
+                    delimiters=[" ", ",", "\t"],
+                    validate=_DOMAIN_VALIDATE,
+                    validate_message=_DOMAIN_VALIDATE_MSG,
                 ),
                 ui.Text(content="Max 20 domains per group", variant="caption"),
             ],
@@ -79,9 +85,14 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Group name", variant="label"),
                 ui.Input(value=g.data["name"], param_name="name"),
                 ui.Text(content="Domains", variant="label"),
-                ui.TagInput(values=domains,
-                            placeholder="add domain, press Enter…",
-                            param_name="domains"),
+                ui.TagInput(
+                    values=domains,
+                    placeholder="domain.com — Enter, Space or comma to add",
+                    param_name="domains",
+                    delimiters=[" ", ",", "\t"],
+                    validate=_DOMAIN_VALIDATE,
+                    validate_message=_DOMAIN_VALIDATE_MSG,
+                ),
             ],
         )
         items.append(ui.ListItem(
@@ -120,7 +131,6 @@ def _profiles_section(prf_data: list) -> ui.UINode:
     else:
         create_form = ui.Form(
             action="create_check_profile", submit_label="Create Profile",
-            # defaults ensures checks are sent even if user doesn't touch MultiSelect
             defaults={"checks": _DEFAULT_CHECKS},
             children=[
                 ui.Text(content="Profile name *", variant="label"),
@@ -258,8 +268,8 @@ def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
 
 # ─── Main builder ─────────────────────────────────────────────────────────── #
 
-async def build_setup(ctx, show_form: str = "") -> ui.UINode:
-    """Setup panel — stays open between saves (no auto-refresh). Use ↺ to refresh."""
+async def build_setup(ctx) -> ui.UINode:
+    """Setup panel — auto-refreshes on group/profile/monitor events."""
     grp_page, prf_page, mon_page = await asyncio.gather(
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
@@ -274,12 +284,8 @@ async def build_setup(ctx, show_form: str = "") -> ui.UINode:
             ui.Text(content="Web Tools Setup", variant="subheading"),
             ui.Text(content="Groups · profiles · monitors", variant="caption"),
         ], gap=0),
-        ui.Stack([
-            ui.Button("Refresh", icon="RefreshCw", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview", show_setup="1")),
-            ui.Button("Close", icon="X", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview", show_setup="")),
-        ], direction="horizontal", gap=1),
+        ui.Button("Close", icon="X", variant="ghost", size="sm",
+                  on_click=ui.Call("__panel__overview")),
     ], direction="horizontal", justify="between", align="center", sticky=True)
 
     return ui.Stack([
