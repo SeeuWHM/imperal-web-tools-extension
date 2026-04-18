@@ -14,15 +14,14 @@ _LEFT_REFRESH = (
     "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
     "group.created,group.deleted,group.updated,profile.created,profile.deleted"
 )
+# overview hosts both overview and setup (show_setup param).
+# refreshAll() after any action preserves show_setup via param merging —
+# setup stays visible between saves/deletes until GAP-1 (refreshAll reset) is
+# fixed on the platform side.
 _RIGHT_REFRESH = (
     "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
     "quick.completed,group.created,group.deleted,group.updated,"
     "profile.created,profile.deleted,profile.updated"
-)
-_SETUP_REFRESH = (
-    "on_event:group.created,group.deleted,group.updated,"
-    "profile.created,profile.deleted,profile.updated,"
-    "monitor.created,monitor.deleted,monitor.updated"
 )
 
 
@@ -37,8 +36,15 @@ async def panel_sidebar(ctx, **kwargs):
 
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",
            refresh=_RIGHT_REFRESH)
-async def panel_overview(ctx, **kwargs):
-    """Right: health dashboard — stats, bar chart, quick check, monitor cards."""
+async def panel_overview(ctx, show_setup: str = "", **kwargs):
+    """Right: health dashboard, OR setup when show_setup='1'.
+
+    Setup is embedded here so refreshAll() preserves show_setup via param
+    merging — setup stays open between saves/deletes.
+    Will be separated into __panel__setup once GAP-1 is fixed platform-side.
+    """
+    if show_setup:
+        return await build_setup(ctx)
     return await build_overview(ctx)
 
 
@@ -49,10 +55,3 @@ async def panel_detail(ctx, monitor_id: str = "", **kwargs):
     if not monitor_id:
         return await build_overview(ctx)
     return await build_detail(ctx, monitor_id)
-
-
-@ext.panel("setup", slot="right", title="Setup", icon="Settings",
-           refresh=_SETUP_REFRESH)
-async def panel_setup(ctx, **kwargs):
-    """Right: onboarding wizard — domain groups, check profiles, monitors."""
-    return await build_setup(ctx)

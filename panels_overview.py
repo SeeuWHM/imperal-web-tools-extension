@@ -51,7 +51,7 @@ async def build_overview(ctx) -> ui.UINode:
             ui.Empty(
                 message="Set up a domain group, check profile, and monitor to start.",
                 icon="Monitor",
-                action=ui.Call("__panel__setup"),
+                action=ui.Call("__panel__overview", show_setup="1"),
             ),
         ])
 

@@ -271,8 +271,12 @@ async def build_setup(ctx) -> ui.UINode:
             ui.Text(content="Web Tools Setup", variant="subheading"),
             ui.Text(content="Groups · profiles · monitors", variant="caption"),
         ], gap=0),
-        ui.Button("Close", icon="X", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview")),
+        ui.Stack([
+            ui.Button("Refresh", icon="RefreshCw", variant="ghost", size="sm",
+                      on_click=ui.Call("__panel__overview", show_setup="1")),
+            ui.Button("Close", icon="X", variant="ghost", size="sm",
+                      on_click=ui.Call("__panel__overview", show_setup="")),
+        ], direction="horizontal", gap=1),
     ], direction="horizontal", justify="between", align="center", sticky=True)
 
     return ui.Stack([
