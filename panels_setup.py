@@ -9,9 +9,8 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import INTERVAL_OPTS, fmt_interval, PROFILE_CHECK_OPTS, PROFILE_CHECK_DEFAULTS
+from panels_ui import INTERVAL_OPTS, fmt_interval, PROFILE_CHECK_DEFAULTS, build_check_toggles
 
-_CHECK_OPTS     = PROFILE_CHECK_OPTS
 _DEFAULT_CHECKS = PROFILE_CHECK_DEFAULTS
 
 
@@ -123,19 +122,13 @@ def _profiles_section(prf_data: list) -> ui.UINode:
     else:
         create_form = ui.Form(
             action="create_check_profile", submit_label="Create Profile",
-            defaults={"checks": _DEFAULT_CHECKS},
+            defaults={"panel_mode": True},
             children=[
                 ui.Text(content="Profile name *", variant="label"),
                 ui.Input(placeholder="e.g. Full Audit, Quick SSL Check",
                          param_name="name"),
-                ui.Text(content="Checks to run (select at least 1, max 5)",
-                        variant="label"),
-                ui.MultiSelect(
-                    options=_CHECK_OPTS,
-                    values=_DEFAULT_CHECKS,
-                    placeholder="Select check types…",
-                    param_name="checks",
-                ),
+                ui.Text(content="Checks to run (max 5)", variant="label"),
+                build_check_toggles(_DEFAULT_CHECKS),
             ],
         )
 
@@ -144,17 +137,12 @@ def _profiles_section(prf_data: list) -> ui.UINode:
         checks = p.data.get("checks", [])
         edit_form = ui.Form(
             action="update_check_profile", submit_label="Save",
-            defaults={"profile_id": p.id, "checks": checks},
+            defaults={"profile_id": p.id, "panel_mode": True},
             children=[
                 ui.Text(content="Profile name", variant="label"),
                 ui.Input(value=p.data["name"], param_name="name"),
-                ui.Text(content="Checks to run", variant="label"),
-                ui.MultiSelect(
-                    options=_CHECK_OPTS,
-                    values=checks,
-                    placeholder="Select check types…",
-                    param_name="checks",
-                ),
+                ui.Text(content="Checks to run (max 5)", variant="label"),
+                build_check_toggles(checks),
             ],
         )
         items.append(ui.ListItem(

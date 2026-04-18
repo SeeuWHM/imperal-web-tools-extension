@@ -59,6 +59,21 @@ CHECKS_INFO: dict[str, tuple[str, str]] = {
 }
 
 
+_CHECK_ORDER = ["ssl", "http", "email", "blacklist", "geo", "whois", "dns"]
+
+
+def build_check_toggles(active: list[str]) -> ui.UINode:
+    """Toggle+Tooltip row per check — for profile create/edit forms (SDK 1.5.8 GAP-2)."""
+    rows = []
+    for key in _CHECK_ORDER:
+        label, tooltip = CHECKS_INFO[key]
+        rows.append(ui.Stack([
+            ui.Toggle(label=label, param_name=key, value=(key in active)),
+            ui.Tooltip(content=tooltip, children=ui.Icon(name="Info", size=14)),
+        ], direction="horizontal", gap=2, align="center"))
+    return ui.Stack(rows, gap=2)
+
+
 def fmt_interval(hours: int) -> str:
     """Human-readable interval: 168 → 'every week', 48 → 'every 2 days'."""
     _map = {1: "every hour", 6: "every 6h", 12: "every 12h",

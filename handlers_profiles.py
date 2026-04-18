@@ -19,10 +19,18 @@ _VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo"}
 class CreateProfileParams(BaseModel):
     """Create check profile parameters."""
     name: str = Field(description="Profile name")
-    checks: list[str] = Field(
-        default_factory=list,
-        description=f"Check types (max {MAX_CHECKS}): ssl/http/email/blacklist/geo/whois/dns",
-    )
+    # Panel sends individual booleans via Toggle (SDK 1.5.8 GAP-2 fix)
+    panel_mode: bool = Field(default=False, description="True when sent from panel toggles")
+    ssl:        bool = Field(default=False)
+    http:       bool = Field(default=False)
+    email:      bool = Field(default=False)
+    blacklist:  bool = Field(default=False)
+    geo:        bool = Field(default=False)
+    whois:      bool = Field(default=False)
+    dns:        bool = Field(default=False)
+    # Chat sends list or legacy CSV
+    checks:     list[str] = Field(default_factory=list,
+                                  description=f"Check types (max {MAX_CHECKS}): ssl/http/email/blacklist/geo/whois/dns")
     checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
 
 
@@ -30,10 +38,14 @@ class CreateProfileParams(BaseModel):
                description=f"Create a check profile — defines which checks to run per domain "
                            f"health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
-    check_list = [c for c in params.checks if c in _VALID_CHECKS]
-    if not check_list and params.checks_csv:
-        check_list = [c.strip() for c in params.checks_csv.split(",")
-                      if c.strip() in _VALID_CHECKS]
+    if params.panel_mode:
+        _order = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
+        check_list = [c for c in _order if getattr(params, c, False)]
+    else:
+        check_list = [c for c in params.checks if c in _VALID_CHECKS]
+        if not check_list and params.checks_csv:
+            check_list = [c.strip() for c in params.checks_csv.split(",")
+                          if c.strip() in _VALID_CHECKS]
     count = await ctx.store.count("wt_profiles", where={"owner_id": ctx.user.id})
     if count >= MAX_PROFILES:
         return ActionResult.error(f"Limit reached: {MAX_PROFILES} profiles max.", retryable=False)
@@ -79,6 +91,16 @@ class UpdateProfileParams(BaseModel):
     """Update check profile — rename or change check types."""
     profile_id: str
     name: str = Field(default="", description="New name (empty = keep current)")
+    # Panel sends individual booleans via Toggle
+    panel_mode: bool = Field(default=False)
+    ssl:        bool = Field(default=False)
+    http:       bool = Field(default=False)
+    email:      bool = Field(default=False)
+    blacklist:  bool = Field(default=False)
+    geo:        bool = Field(default=False)
+    whois:      bool = Field(default=False)
+    dns:        bool = Field(default=False)
+    # Chat sends list
     checks: list[str] = Field(default_factory=list,
                               description="New check list (empty = keep current)")
 
@@ -90,11 +112,14 @@ async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionRes
     if not doc or doc.data.get("owner_id") != ctx.user.id:
         return ActionResult.error("Check profile not found.", retryable=False)
     patch: dict = {}
-    if params.checks:
+    if params.panel_mode:
+        _order = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
+        check_list = [c for c in _order if getattr(params, c, False)]
+    elif params.checks:
         check_list = [c for c in params.checks if c in _VALID_CHECKS]
-        if not check_list:
-            return ActionResult.error(
-                f"No valid checks. Allowed: {', '.join(sorted(_VALID_CHECKS))}", retryable=False)
+    else:
+        check_list = []
+    if check_list:
         if len(check_list) > MAX_CHECKS:
             return ActionResult.error(f"Too many checks. Max {MAX_CHECKS}.", retryable=False)
         patch["checks"] = list(dict.fromkeys(check_list))
