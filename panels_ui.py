@@ -63,14 +63,14 @@ _CHECK_ORDER = ["ssl", "http", "email", "blacklist", "geo", "whois", "dns"]
 
 
 def build_check_toggles(active: list[str]) -> ui.UINode:
-    """Toggle+Tooltip row per check — for profile create/edit forms (SDK 1.5.8 GAP-2)."""
+    """Toggle per check with caption description — for profile create/edit forms."""
     rows = []
     for key in _CHECK_ORDER:
         label, tooltip = CHECKS_INFO[key]
         rows.append(ui.Stack([
             ui.Toggle(label=label, param_name=key, value=(key in active)),
-            ui.Tooltip(content=tooltip, children=ui.Icon(name="Info", size=14)),
-        ], direction="horizontal", gap=2, align="center"))
+            ui.Text(content=tooltip, variant="caption"),
+        ], gap=0))
     return ui.Stack(rows, gap=2)
 
 

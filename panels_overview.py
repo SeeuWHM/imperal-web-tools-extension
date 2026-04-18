@@ -102,7 +102,7 @@ async def build_overview(ctx) -> ui.UINode:
             ui.Text(content="Domain Health by Monitor", variant="label"),
             ui.Chart(
                 data=chart_data, type="bar", x_key="name", height=160,
-                colors={"OK": "#22c55e", "Warning": "#eab308", "Critical": "#ef4444", "Unknown": "#6b7280"},
+                colors={"OK": "#22c55e", "Warning": "#eab308", "Critical": "#ef4444", "Unknown": "#8b5cf6"},
             ),
         ]
 
