@@ -52,9 +52,9 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
     })
     return ActionResult.success(
         data={"monitor_id": doc.id, "name": params.name,
-              "group": grp.data["name"], "profile": prf.data["name"], "interval_hours": interval,
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+              "group": grp.data["name"], "profile": prf.data["name"], "interval_hours": interval},
         summary=f"Created domain health monitor '{params.name}' — {grp.data['name']} every {interval}h",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
 
 
@@ -109,9 +109,9 @@ async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     name = updated.data["name"]
     interval = updated.data["interval_hours"]
     return ActionResult.success(
-        data={"monitor_id": params.monitor_id, "name": name, "interval_hours": interval,
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+        data={"monitor_id": params.monitor_id, "name": name, "interval_hours": interval},
         summary=f"Updated monitor '{name}' — every {interval}h",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
 
 
@@ -139,7 +139,7 @@ async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
                                 for s in snap_page.data])
     await ctx.store.delete("wt_monitors", params.monitor_id)
     return ActionResult.success(
-        data={"monitor_id": params.monitor_id,
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+        data={"monitor_id": params.monitor_id},
         summary=f"Deleted domain health monitor '{name}'",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )

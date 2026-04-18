@@ -1,7 +1,8 @@
 """web-tools · Setup panel — domain groups, check profiles, monitors.
 
-Embedded in __panel__overview via show_setup param — preserves visibility across
-refreshAll() calls (GAP-1 workaround). Header: ↺ Refresh + ✕ Close.
+Auto-refreshes via refresh_panels kwarg on ActionResult (canonical SDK API).
+Platform refreshes __panel__overview with current params after every action.
+Header: ✕ Close only.
 """
 from __future__ import annotations
 
@@ -264,12 +265,8 @@ async def build_setup(ctx) -> ui.UINode:
             ui.Text(content="Web Tools Setup", variant="subheading"),
             ui.Text(content="Groups · profiles · monitors", variant="caption"),
         ], gap=0),
-        ui.Stack([
-            ui.Button("Refresh", icon="RefreshCw", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview", show_setup="1")),
-            ui.Button("Close", icon="X", variant="ghost", size="sm",
-                      on_click=ui.Call("__panel__overview", show_setup="")),
-        ], direction="horizontal", gap=1),
+        ui.Button("Close", icon="X", variant="ghost", size="sm",
+                  on_click=ui.Call("__panel__overview", show_setup="")),
     ], direction="horizontal", justify="between", align="center", sticky=True)
 
     return ui.Stack([

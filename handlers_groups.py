@@ -64,9 +64,9 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
         "created_at":  datetime.datetime.utcnow().isoformat(),
     })
     return ActionResult.success(
-        data={"group_id": doc.id, "name": params.name, "domains": params.domains,
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+        data={"group_id": doc.id, "name": params.name, "domains": params.domains},
         summary=f"Created domain group '{params.name}' with {len(domain_list)} domain(s)",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
 
 
@@ -112,9 +112,9 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
         patch["name"] = params.name[:50]
     updated = await ctx.store.update("wt_groups", params.group_id, patch)
     return ActionResult.success(
-        data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains,
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+        data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains},
         summary=f"Updated domain group '{updated.data['name']}' — {len(new_domains)} domain(s)",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
 
 
@@ -164,8 +164,8 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
     await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
 
     return ActionResult.success(
-        data={"group_id": params.group_id, "monitors_removed": len(mon_page.data),
-              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
+        data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted group '{name}' and {len(mon_page.data)} monitor(s)",
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
 
