@@ -160,6 +160,7 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
         data={"snapshot_id": snap.id, "monitor_id": params.monitor_id,
               "status": overall, "summary": counts, "domains_checked": len(domains)},
         summary=f"Scan complete: {overall.upper()} — {len(domains)} domain(s), {issues} issue(s)",
+        refresh_panels=["__panel__sidebar", "__panel__overview", "__panel__detail"],
     )
 
 
@@ -273,7 +274,10 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     else:
         await ctx.store.create("wt_quick_results", doc)
 
-    return ActionResult.success(data=result_data, summary=summary)
+    return ActionResult.success(
+        data=result_data, summary=summary,
+        refresh_panels=["__panel__sidebar", "__panel__overview"],
+    )
 
 
 # ─── Panel Data (chat LLM context) ────────────────────────────────────────── #

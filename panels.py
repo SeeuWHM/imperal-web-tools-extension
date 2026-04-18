@@ -10,19 +10,11 @@ from panels_setup    import build_setup
 
 # ─── Refresh triggers ─────────────────────────────────────────────────────── #
 
-_LEFT_REFRESH = (
-    "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
-    "group.created,group.deleted,group.updated,profile.created,profile.deleted"
-)
-# overview hosts both overview and setup (show_setup param).
-# refreshAll() after any action preserves show_setup via param merging —
-# setup stays visible between saves/deletes until GAP-1 (refreshAll reset) is
-# fixed on the platform side.
-_RIGHT_REFRESH = (
-    "on_event:scan.completed,monitor.created,monitor.deleted,monitor.updated,"
-    "quick.completed,group.created,group.deleted,group.updated,"
-    "profile.created,profile.deleted,profile.updated"
-)
+# Group/profile/monitor CRUD events handled via refresh_panels kwarg on ActionResult.
+# on_event only covers scan/quick — those fire from both panel and chat contexts
+# and don't use refresh_panels.
+_LEFT_REFRESH  = "on_event:scan.completed"
+_RIGHT_REFRESH = "on_event:scan.completed,quick.completed"
 
 
 # ─── Panel handlers ───────────────────────────────────────────────────────── #

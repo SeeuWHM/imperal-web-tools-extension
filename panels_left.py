@@ -99,7 +99,7 @@ async def build_sidebar(ctx) -> ui.UINode:
         ui.Divider(label="MONITORS"),
         ui.List(items=mon_items),
         ui.Divider(),
-        ui.Button("Setup", icon="Settings", variant="ghost",
-                  size="sm", full_width=True,
+        ui.Button("Setup", icon="Settings", variant="secondary",
+                  size="md", full_width=True,
                   on_click=ui.Call("__panel__overview", show_setup="1")),
     ])
