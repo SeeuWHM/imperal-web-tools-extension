@@ -1,8 +1,7 @@
 """web-tools · Setup panel — domain groups, check profiles, monitors.
 
-Auto-refreshes via _SETUP_REFRESH events (group/profile/monitor created/updated/deleted).
-No manual refresh button needed — platform preserves panel on refreshAll (GAP-1 fixed).
-Close navigates to __panel__overview.
+Embedded in __panel__overview via show_setup param — preserves visibility across
+refreshAll() calls (GAP-1 workaround). Header: ↺ Refresh + ✕ Close.
 """
 from __future__ import annotations
 

@@ -51,7 +51,8 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
         "created_at": datetime.datetime.utcnow().isoformat(),
     })
     return ActionResult.success(
-        data={"profile_id": doc.id, "name": params.name, "checks": deduped},
+        data={"profile_id": doc.id, "name": params.name, "checks": deduped,
+              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
         summary=f"Created check profile '{params.name}': {', '.join(deduped)}",
     )
 
@@ -105,7 +106,8 @@ async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionRes
     checks_str = ", ".join(updated.data.get("checks", []))
     return ActionResult.success(
         data={"profile_id": params.profile_id, "name": updated.data["name"],
-              "checks": updated.data.get("checks", [])},
+              "checks": updated.data.get("checks", []),
+              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
         summary=f"Updated profile '{updated.data['name']}': {checks_str}",
     )
 
@@ -139,6 +141,7 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
 
     await asyncio.gather(*[_del_mon(m) for m in mon_page.data])
     return ActionResult.success(
-        data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data)},
+        data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data),
+              "refresh_panels": ["__panel__sidebar", "__panel__overview"]},
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
     )
