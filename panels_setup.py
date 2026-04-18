@@ -56,8 +56,11 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
                     values=[],
-                    placeholder="domain.com — press Enter to add",
+                    placeholder="domain.com — Enter, Space or comma",
                     param_name="domains",
+                    delimiters=[" ", ","],
+                    validate=r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$",
+                    validate_message="Enter a valid domain: example.com",
                 ),
                 ui.Text(content="Max 20 domains per group", variant="caption"),
             ],
@@ -76,8 +79,11 @@ def _groups_section(grp_data: list) -> ui.UINode:
                 ui.Text(content="Domains", variant="label"),
                 ui.TagInput(
                     values=domains,
-                    placeholder="domain.com — press Enter to add",
+                    placeholder="domain.com — Enter, Space or comma",
                     param_name="domains",
+                    delimiters=[" ", ","],
+                    validate=r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$",
+                    validate_message="Enter a valid domain: example.com",
                 ),
             ],
         )
