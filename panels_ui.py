@@ -6,7 +6,6 @@ from imperal_sdk import ui
 # ─── Select options ───────────────────────────────────────────────────────── #
 
 CHECKS_OPTS = [
-    {"value": "dns",       "label": "DNS"},
     {"value": "ssl",       "label": "SSL"},
     {"value": "http",      "label": "HTTP Headers"},
     {"value": "email",     "label": "Email Deliverability"},
@@ -43,7 +42,6 @@ PROFILE_CHECK_OPTS = [
     {"value": "blacklist", "label": "Blacklist — 30 DNSBL lists"},
     {"value": "geo",       "label": "Geo Probe — EU · US · SG · MD"},
     {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
-    {"value": "dns",       "label": "DNS Records — A · MX · NS · TXT"},
 ]
 PROFILE_CHECK_DEFAULTS = ["ssl", "http", "email", "blacklist"]
 
