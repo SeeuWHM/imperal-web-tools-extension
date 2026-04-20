@@ -21,17 +21,16 @@ async def build_overview(ctx, view: str = "monitors") -> ui.UINode:
 # ─── Tab bar ──────────────────────────────────────────────────────────────── #
 
 def _tabs(active: str, n_monitors: int) -> ui.UINode:
-    label = f"Monitors ({n_monitors})"
     return ui.Stack([
-        ui.Button(label, icon="Monitor",
-                  variant="primary" if active == "monitors" else "secondary",
+        ui.Button(f"Monitors ({n_monitors})",
+                  variant="secondary" if active == "monitors" else "ghost",
                   size="sm",
                   on_click=ui.Call("__panel__overview", view="monitors")),
-        ui.Button("+ New", icon="Plus",
-                  variant="primary" if active == "new" else "secondary",
+        ui.Button("+ New",
+                  variant="secondary" if active == "new" else "ghost",
                   size="sm",
                   on_click=ui.Call("__panel__overview", view="new")),
-    ], direction="h", gap=2, sticky=True, wrap=False)
+    ], direction="h", gap=0, sticky=True, wrap=False)
 
 
 # ─── Monitors view ────────────────────────────────────────────────────────── #
