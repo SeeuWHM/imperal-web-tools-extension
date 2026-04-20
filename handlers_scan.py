@@ -78,7 +78,6 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
 # ─── Scan Runner ──────────────────────────────────────────────────────────── #
 
 class RunScanParams(BaseModel):
-    """Run scan parameters."""
     monitor_id: str = Field(description="Monitor ID to run scan for now")
 
 
@@ -167,7 +166,6 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
 # ─── Scan Results ─────────────────────────────────────────────────────────── #
 
 class GetScanResultsParams(BaseModel):
-    """Get scan results parameters."""
     monitor_id: str = Field(description="Monitor ID to retrieve last scan results for")
 
 
@@ -203,7 +201,6 @@ async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult
 # ─── Quick Check ──────────────────────────────────────────────────────────── #
 
 class QuickCheckParams(BaseModel):
-    """Quick check parameters."""
     domain: str = Field(description="Domain name or IP address to check")
     preset: Literal["full", "dns", "ssl", "http", "email",
                     "blacklist", "geo", "ports"] = Field(
