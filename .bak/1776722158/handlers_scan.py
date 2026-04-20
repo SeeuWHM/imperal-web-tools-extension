@@ -59,7 +59,6 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
         "email":     f"{base}/v1/email/full/{domain}",
         "blacklist": f"{base}/v1/blacklist/domain/{domain}",
         "geo":       f"{base}/v1/geo/full/{domain}",
-        "ports":     f"{base}/v1/ports/scan/{domain}",
     }
 
     async def _one(check: str) -> tuple[str, dict]:

@@ -1,105 +1,60 @@
-"""web-tools · Left sidebar — monitors navigation + health summary."""
+"""web-tools · Left sidebar — Scan Tool: on-demand multi-domain checks."""
 from __future__ import annotations
-
-import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge, fmt_interval
+from panels_ui import domain_items
 
 
-# ─── Sidebar builder ──────────────────────────────────────────────────────── #
+# ─── Scan Tool ────────────────────────────────────────────────────────────── #
+
+_DOMAIN_RE = r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$"
 
 async def build_sidebar(ctx) -> ui.UINode:
-    """Compact navigation: health alert, monitor list, action buttons."""
-    mon_page, grp_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
+    """Scan Tool: TagInput domains + check toggles + results."""
+    spage = await ctx.store.query("wt_scan_results",
+                                   where={"owner_id": ctx.user.id}, limit=1)
+
+    # ── Scan form ─────────────────────────────────────────────────────────── #
+    scan_form = ui.Form(
+        action="run_scan_tool",
+        submit_label="Scan",
+        defaults={
+            "ssl": True, "http": True, "email": True, "blacklist": True,
+            "geo": False, "whois": False, "ports": False,
+        },
+        children=[
+            ui.TagInput(
+                values=[],
+                placeholder="domain.com or IP — Enter, comma or space",
+                param_name="domains",
+                delimiters=[" ", ","],
+                validate=_DOMAIN_RE,
+                validate_message="Enter a valid domain or IP address",
+            ),
+            ui.Stack([
+                ui.Toggle(label="SSL",   param_name="ssl",       value=True),
+                ui.Toggle(label="HTTP",  param_name="http",      value=True),
+                ui.Toggle(label="Email", param_name="email",     value=True),
+                ui.Toggle(label="BL",    param_name="blacklist", value=True),
+                ui.Toggle(label="Geo",   param_name="geo",       value=False),
+                ui.Toggle(label="WHOIS", param_name="whois",     value=False),
+                ui.Toggle(label="Ports", param_name="ports",     value=False),
+            ], direction="h", gap=1, wrap=True),
+        ],
     )
 
-    skel      = getattr(ctx, "skeleton_data", {}).get("skeleton_refresh_web_tools", {})
-    skel_mons = skel.get("monitors", {})
-    grp_map   = {g.id: g.data["name"] for g in grp_page.data}
+    # ── Last scan results ─────────────────────────────────────────────────── #
+    results_section: list = []
+    if spage.data:
+        last   = spage.data[0].data
+        r_data = last.get("results", {})
+        if r_data:
+            ts    = last.get("created_at", "")[:16].replace("T", " ")
+            items = domain_items(r_data)
+            results_section = [
+                ui.Divider(label=ts),
+                ui.List(items=items, searchable=len(items) > 3),
+            ]
 
-    # Load snapshot status + summary directly — skeleton is cached and can be
-    # stale right after a scan (skeleton refreshes on its own schedule)
-    async def _snap_data(m):
-        sid = m.data.get("last_snapshot_id")
-        if not sid:
-            return m.id, "unknown", {}
-        snap = await ctx.store.get("wt_snapshots", sid)
-        if snap:
-            return m.id, snap.data.get("status", "unknown"), snap.data.get("summary", {})
-        return m.id, "unknown", {}
-
-    snap_rows    = await asyncio.gather(*[_snap_data(m) for m in mon_page.data])
-    live_status  = {mid: st   for mid, st, _   in snap_rows}
-    live_summary = {mid: summ for mid, _,  summ in snap_rows}
-
-    # ── Health summary (1 line) ───────────────────────────────────────────── #
-    n_total   = len(mon_page.data)
-    n_scanned = sum(1 for m in mon_page.data if m.data.get("last_snapshot_id"))
-
-    # Use live snapshot statuses — skeleton can be stale right after a scan
-    n_crit    = sum(1 for s in live_status.values() if s == "critical")
-    n_ok_live = sum(1 for s in live_status.values() if s == "ok")
-
-    if n_crit:
-        health: ui.UINode = ui.Alert(
-            type="error", message=f"{n_crit} critical issue(s) detected")
-    elif n_total and n_scanned == n_total and n_ok_live == n_total:
-        health = ui.Alert(type="success", message="All monitors healthy")
-    else:
-        count_lbl = f"{n_total} monitor{'s' if n_total != 1 else ''}"
-        health = ui.Text(content=count_lbl, variant="caption")
-
-    # ── Empty state ───────────────────────────────────────────────────────── #
-    if not mon_page.data:
-        return ui.Stack([
-            health,
-            ui.Divider(),
-            ui.Empty(message="No monitors yet", icon="Monitor"),
-            ui.Button("Set Up Web Tools", icon="Settings", variant="primary",
-                      full_width=True,
-                      on_click=ui.Call("__panel__overview", show_setup="1")),
-        ])
-
-    # ── Monitor list ──────────────────────────────────────────────────────── #
-    mon_items = []
-    for m in mon_page.data:
-        grp_name = grp_map.get(m.data.get("group_id", ""), "—")
-        last_run = (m.data.get("last_run_at") or "")[:10]    # live from store, not skeleton
-        snap_sum = live_summary.get(m.id, {})
-
-        if snap_sum and snap_sum.get("total_domains"):
-            total = snap_sum["total_domains"]
-            n_ok  = snap_sum.get("domains_ok", min(snap_sum.get("ok", 0), total))
-            sub   = f"{grp_name} · {n_ok}/{total} OK"
-        else:
-            sub = f"{grp_name} · {fmt_interval(m.data['interval_hours'])} · never scanned"
-
-        mon_items.append(ui.ListItem(
-            id=m.id,
-            title=m.data["name"],
-            subtitle=sub,
-            badge=status_badge(live_status.get(m.id, "unknown")),
-            meta=last_run or "—",
-            on_click=ui.Call("__panel__detail", monitor_id=m.id),
-            actions=[
-                {"icon": "Play",   "label": "Scan Now",
-                 "on_click": ui.Call("run_scan", monitor_id=m.id)},
-                {"icon": "Trash2", "label": "Delete",
-                 "on_click": ui.Call("delete_monitor", monitor_id=m.id),
-                 "confirm": f"Delete '{m.data['name']}'?"},
-            ],
-        ))
-
-    return ui.Stack([
-        health,
-        ui.Divider(label="MONITORS"),
-        ui.List(items=mon_items),
-        ui.Divider(),
-        ui.Button("Setup", icon="Settings", variant="secondary",
-                  size="md", full_width=True,
-                  on_click=ui.Call("__panel__overview", show_setup="1")),
-    ])
+    return ui.Stack([scan_form, *results_section])

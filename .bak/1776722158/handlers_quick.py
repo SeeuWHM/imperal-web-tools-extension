@@ -1,4 +1,4 @@
-"""web-tools · Scan Tool (left panel bulk scan) + quick check (chat) + panel data."""
+"""web-tools · Quick check (one-off panel check) + panel data for LLM context."""
 from __future__ import annotations
 
 import asyncio
@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
-from handlers_scan import _run_domain_checks
 
 
 # ─── Quick Check ──────────────────────────────────────────────────────────── #
@@ -86,63 +85,6 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     return ActionResult.success(
         data=result_data, summary=summary,
         refresh_panels=["__panel__sidebar", "__panel__overview"],
-    )
-
-
-# ─── Scan Tool (left panel — multi-domain, toggle checks) ────────────────── #
-
-class ScanToolParams(BaseModel):
-    domains:   list[str] = Field(description="Domains or IPs to scan (max 10)")
-    ssl:       bool = Field(default=False)
-    http:      bool = Field(default=False)
-    email:     bool = Field(default=False)
-    blacklist: bool = Field(default=False)
-    geo:       bool = Field(default=False)
-    whois:     bool = Field(default=False)
-    ports:     bool = Field(default=False)
-
-
-@chat.function("run_scan_tool", action_type="write", event="scan.tool",
-               description="Scan one or more domains/IPs on demand — select checks via toggles. Results shown in the left panel.")
-async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
-    domains = list(dict.fromkeys(
-        d.strip() for d in (params.domains or []) if d.strip()
-    ))[:10]
-    if not domains:
-        return ActionResult.error("Add at least one domain or IP.", retryable=False)
-
-    checks = [k for k, v in {
-        "ssl": params.ssl, "http": params.http, "email": params.email,
-        "blacklist": params.blacklist, "geo": params.geo,
-        "whois": params.whois, "ports": params.ports,
-    }.items() if v]
-    if not checks:
-        return ActionResult.error("Enable at least one check.", retryable=False)
-
-    dom_sem = asyncio.Semaphore(3)
-
-    async def _scan(d: str) -> tuple[str, dict]:
-        async with dom_sem:
-            return d, await _run_domain_checks(ctx, d, checks)
-
-    results = dict(await asyncio.gather(*[_scan(d) for d in domains]))
-    now = datetime.datetime.utcnow().isoformat()
-
-    spage = await ctx.store.query("wt_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, "domains": domains,
-           "checks": checks, "results": results, "created_at": now}
-    if spage.data:
-        await ctx.store.update("wt_scan_results", spage.data[0].id, doc)
-    else:
-        await ctx.store.create("wt_scan_results", doc)
-
-    issues = sum(1 for dr in results.values()
-                 for r in dr.values() if r.get("status") in ("warning", "critical"))
-    return ActionResult.success(
-        data={"scanned": len(domains), "checks": checks, "issues": issues},
-        summary=f"Scanned {len(domains)} domain(s) — {issues} issue(s)",
-        refresh_panels=["__panel__sidebar"],
     )
 
 

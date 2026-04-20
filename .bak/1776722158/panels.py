@@ -6,15 +6,15 @@ from app import ext
 from panels_left     import build_sidebar
 from panels_overview import build_overview
 from panels_detail   import build_detail
+from panels_setup    import build_setup
 
 # ─── Refresh triggers ─────────────────────────────────────────────────────── #
 
-# Left (Scan Tool): refresh after run_scan_tool (via refresh_panels), also on
-# scheduled scans completing so sidebar results don't go stale if open
-_LEFT_REFRESH  = "on_event:scan.tool"
-
-# Right (Monitors): refresh when scheduler runs a monitor scan (status update)
-_RIGHT_REFRESH = "on_event:scan.completed"
+# Group/profile/monitor CRUD events handled via refresh_panels kwarg on ActionResult.
+# on_event only covers scan/quick — those fire from both panel and chat contexts
+# and don't use refresh_panels.
+_LEFT_REFRESH  = "on_event:scan.completed"
+_RIGHT_REFRESH = "on_event:scan.completed,quick.completed"
 
 
 # ─── Panel handlers ───────────────────────────────────────────────────────── #
@@ -22,21 +22,28 @@ _RIGHT_REFRESH = "on_event:scan.completed"
 @ext.panel("sidebar", slot="left", title="Web Tools", icon="Globe",
            refresh=_LEFT_REFRESH)
 async def panel_sidebar(ctx, **kwargs):
-    """Left panel: Scan Tool — on-demand multi-domain checks."""
+    """Left sidebar: health summary + monitor navigation."""
     return await build_sidebar(ctx)
 
 
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",
            refresh=_RIGHT_REFRESH)
-async def panel_overview(ctx, **kwargs):
-    """Right panel: monitor stats, health chart, cards, new monitor form."""
+async def panel_overview(ctx, show_setup: str = "", **kwargs):
+    """Right: health dashboard, OR setup when show_setup='1'.
+
+    Setup is embedded here so refreshAll() preserves show_setup via param
+    merging — setup stays open between saves/deletes.
+    Will be separated into __panel__setup once GAP-1 is fixed platform-side.
+    """
+    if show_setup:
+        return await build_setup(ctx)
     return await build_overview(ctx)
 
 
 @ext.panel("detail", slot="right", title="Monitor Detail", icon="BarChart2",
            refresh=_RIGHT_REFRESH)
 async def panel_detail(ctx, monitor_id: str = "", **kwargs):
-    """Right panel: per-monitor scan results, domain list, settings."""
+    """Right: per-monitor pie chart, domain list, settings."""
     if not monitor_id:
         return await build_overview(ctx)
     return await build_detail(ctx, monitor_id)

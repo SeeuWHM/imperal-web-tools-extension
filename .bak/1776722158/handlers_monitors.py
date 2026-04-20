@@ -1,4 +1,4 @@
-"""web-tools · Domain Health Monitors — CRUD + atomic create-full."""
+"""web-tools · Domain Health Monitors — CRUD + update."""
 from __future__ import annotations
 
 import asyncio
@@ -141,65 +141,5 @@ async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     return ActionResult.success(
         data={"monitor_id": params.monitor_id},
         summary=f"Deleted domain health monitor '{name}'",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
-    )
-
-
-# ─── Create Monitor Full (panel: atomic group + profile + monitor) ─────────── #
-
-_VALID_CHECKS = {"ssl", "http", "email", "blacklist", "geo", "whois", "ports"}
-
-
-class CreateMonitorFullParams(BaseModel):
-    name:           str       = Field(description="Monitor name")
-    domains:        list[str] = Field(description="Domains to monitor (max 20)")
-    checks:         list[str] = Field(description="Check types: ssl, http, email, blacklist, geo, whois")
-    interval_hours: int       = Field(default=24, description="Scan interval in hours (1/6/12/24/48/168)")
-
-
-@chat.function("create_monitor_full", action_type="write", event="monitor.created",
-               description="Create a domain health monitor from the panel — provide name, domains, checks and interval. Atomically creates group, profile and monitor in one step.")
-async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:
-    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
-    if count >= MAX_MONITORS:
-        return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
-
-    name = (params.name or "").strip()[:50]
-    if not name:
-        return ActionResult.error("Monitor name is required.", retryable=False)
-
-    domains = list(dict.fromkeys(
-        d.strip().lower() for d in (params.domains or []) if d.strip()
-    ))[:20]
-    if not domains:
-        return ActionResult.error("Add at least one domain.", retryable=False)
-
-    checks = list(dict.fromkeys(
-        c for c in (params.checks or []) if c in _VALID_CHECKS
-    ))
-    if not checks:
-        return ActionResult.error("Select at least one check type.", retryable=False)
-
-    interval = max(1, int(params.interval_hours or 24))
-    now = datetime.datetime.utcnow().isoformat()
-
-    grp = await ctx.store.create("wt_groups", {
-        "owner_id": ctx.user.id, "name": name,
-        "domains": domains, "description": "", "created_at": now,
-    })
-    prf = await ctx.store.create("wt_profiles", {
-        "owner_id": ctx.user.id, "name": name,
-        "checks": checks, "created_at": now,
-    })
-    doc = await ctx.store.create("wt_monitors", {
-        "owner_id": ctx.user.id, "name": name,
-        "group_id": grp.id, "profile_id": prf.id,
-        "interval_hours": interval, "enabled": True,
-        "last_run_at": None, "last_snapshot_id": None, "created_at": now,
-    })
-    return ActionResult.success(
-        data={"monitor_id": doc.id, "name": name,
-              "domains": len(domains), "checks": checks, "interval_hours": interval},
-        summary=f"Created monitor '{name}' — {len(domains)} domain(s), every {interval}h",
         refresh_panels=["__panel__sidebar", "__panel__overview"],
     )
