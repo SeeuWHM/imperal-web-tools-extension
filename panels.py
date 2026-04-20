@@ -28,9 +28,9 @@ async def panel_sidebar(ctx, **kwargs):
 
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",
            refresh=_RIGHT_REFRESH)
-async def panel_overview(ctx, **kwargs):
-    """Right panel: monitor stats, health chart, cards, new monitor form."""
-    return await build_overview(ctx)
+async def panel_overview(ctx, view: str = "monitors", **kwargs):
+    """Right panel: Monitors view or New Monitor view (manual tab buttons)."""
+    return await build_overview(ctx, view=view)
 
 
 @ext.panel("detail", slot="right", title="Monitor Detail", icon="BarChart2",

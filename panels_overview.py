@@ -1,44 +1,56 @@
-"""web-tools · Right panel: Monitors tab + New Monitor tab."""
+"""web-tools · Right panel: Monitors view + New Monitor view (manual tab buttons)."""
 from __future__ import annotations
 
 import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge, fmt_interval, INTERVAL_OPTS, PROFILE_CHECK_OPTS
+from panels_ui import status_badge, fmt_interval, INTERVAL_OPTS
 
 MAX_MONITORS = 5
 
-# ─── Overview builder ─────────────────────────────────────────────────────── #
 
-async def build_overview(ctx) -> ui.UINode:
-    """Two tabs: Monitors (stats+chart+cards) | + New (creation form)."""
+# ─── Public entry ─────────────────────────────────────────────────────────── #
+
+async def build_overview(ctx, view: str = "monitors") -> ui.UINode:
+    if view == "new":
+        return await _build_new_view(ctx)
+    return await _build_monitors_view(ctx)
+
+
+# ─── Tab bar ──────────────────────────────────────────────────────────────── #
+
+def _tabs(active: str, n_monitors: int) -> ui.UINode:
+    label = f"Monitors ({n_monitors})"
+    return ui.Stack([
+        ui.Button(label, icon="Monitor",
+                  variant="primary" if active == "monitors" else "secondary",
+                  size="sm",
+                  on_click=ui.Call("__panel__overview", view="monitors")),
+        ui.Button("+ New", icon="Plus",
+                  variant="primary" if active == "new" else "secondary",
+                  size="sm",
+                  on_click=ui.Call("__panel__overview", view="new")),
+    ], direction="h", gap=2, sticky=True, wrap=False)
+
+
+# ─── Monitors view ────────────────────────────────────────────────────────── #
+
+async def _build_monitors_view(ctx) -> ui.UINode:
     mon_page, grp_page = await asyncio.gather(
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
     )
-    grp_map = {g.id: g.data["name"] for g in grp_page.data}
+    grp_map   = {g.id: g.data["name"] for g in grp_page.data}
+    tab_bar   = _tabs("monitors", len(mon_page.data))
 
-    # ── New Monitor tab content ───────────────────────────────────────────── #
-    if len(mon_page.data) >= MAX_MONITORS:
-        new_tab_content = [
-            ui.Alert(type="warn",
-                     message=f"Monitor limit reached ({MAX_MONITORS}/{MAX_MONITORS}). "
-                              "Delete a monitor to add a new one."),
-        ]
-    else:
-        new_tab_content = [_build_new_monitor_form()]
-
-    # ── Empty state ───────────────────────────────────────────────────────── #
     if not mon_page.data:
-        return ui.Tabs(tabs=[
-            {"label": "Monitors (0)", "content": [
-                ui.Empty(message="No monitors yet", icon="Monitor"),
-            ]},
-            {"label": "+ New", "content": new_tab_content},
-        ], default_tab=1)
+        return ui.Stack([
+            tab_bar,
+            ui.Empty(message="No monitors yet — click '+ New' to create one",
+                     icon="Monitor"),
+        ])
 
-    # ── Load snapshots ────────────────────────────────────────────────────── #
     async def _snap(sid):
         return await ctx.store.get("wt_snapshots", sid) if sid else None
 
@@ -50,15 +62,13 @@ async def build_overview(ctx) -> ui.UINode:
     n_warn = sum(1 for s in snaps if s and s.data.get("status") == "warning")
     n_ok   = sum(1 for s in snaps if s and s.data.get("status") == "ok")
 
-    # ── Stats ─────────────────────────────────────────────────────────────── #
     stats = ui.Stats([
         ui.Stat(label="Monitors", value=len(mon_page.data), icon="Monitor"),
-        ui.Stat(label="OK",       value=n_ok,   icon="CheckCircle",   color="green"),
-        ui.Stat(label="Warning",  value=n_warn, icon="AlertTriangle",  color="yellow"),
-        ui.Stat(label="Critical", value=n_crit, icon="XCircle",        color="red"),
+        ui.Stat(label="OK",       value=n_ok,   icon="CheckCircle",  color="green"),
+        ui.Stat(label="Warning",  value=n_warn, icon="AlertTriangle", color="yellow"),
+        ui.Stat(label="Critical", value=n_crit, icon="XCircle",       color="red"),
     ])
 
-    # ── Bar chart ─────────────────────────────────────────────────────────── #
     chart_data = []
     for m in mon_page.data:
         snap = snap_map.get(m.id)
@@ -87,71 +97,34 @@ async def build_overview(ctx) -> ui.UINode:
         crit_alert = [ui.Alert(type="error",
                                message=f"{n_crit} monitor(s) critical — scan now")]
 
-    # ── Monitor cards ─────────────────────────────────────────────────────── #
     _order = {"critical": 0, "warning": 1, "ok": 2, "unknown": 3}
     sorted_mons = sorted(
         mon_page.data,
         key=lambda m: _order.get(
             (snap_map.get(m.id) and snap_map[m.id].data.get("status")) or "unknown", 3),
     )
-    mon_cards = [_build_monitor_card(m, snap_map.get(m.id),
-                                      grp_map.get(m.data.get("group_id", ""), "—"))
+    mon_cards = [_monitor_card(m, snap_map.get(m.id),
+                                grp_map.get(m.data.get("group_id", ""), "—"))
                  for m in sorted_mons]
 
-    monitors_content = [stats, *crit_alert, *chart_block, *mon_cards]
-
-    return ui.Tabs(tabs=[
-        {"label": f"Monitors ({len(mon_page.data)})", "content": monitors_content},
-        {"label": "+ New",                             "content": new_tab_content},
-    ], default_tab=0)
+    return ui.Stack([tab_bar, stats, *crit_alert, *chart_block, *mon_cards])
 
 
-# ─── Card builders ────────────────────────────────────────────────────────── #
+# ─── New Monitor view ─────────────────────────────────────────────────────── #
 
-def _build_monitor_card(m, snap, grp_name: str) -> ui.UINode:
-    mon_status = (snap and snap.data.get("status")) or "unknown"
-    last_run   = (m.data.get("last_run_at") or "")[:10]
-    ssum       = snap.data.get("summary", {}) if snap else {}
-    total      = ssum.get("total_domains", 0)
-    n_ok_dom   = ssum.get("domains_ok", min(ssum.get("ok", 0), total))
-    pct_ok     = int(n_ok_dom / total * 100) if total else 0
+async def _build_new_view(ctx) -> ui.UINode:
+    count   = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
+    tab_bar = _tabs("new", count)
 
-    if total:
-        content: ui.UINode = ui.Stack([
-            ui.Stack([
-                status_badge(mon_status),
-                ui.Text(content=f"{n_ok_dom}/{total} OK", variant="caption"),
-            ], direction="h", gap=2),
-            ui.Progress(
-                value=pct_ok, label=f"{pct_ok}%", variant="bar",
-                color="red" if pct_ok < 40 else "yellow" if pct_ok < 70 else "green",
-            ),
+    if count >= MAX_MONITORS:
+        return ui.Stack([
+            tab_bar,
+            ui.Alert(type="warn",
+                     message=f"Monitor limit reached ({MAX_MONITORS}/{MAX_MONITORS}). "
+                              "Delete a monitor to add a new one."),
         ])
-    else:
-        content = ui.Stack([
-            status_badge(mon_status),
-            ui.Text(content="Never scanned", variant="caption"),
-        ], direction="h", gap=2)
 
-    return ui.Card(
-        title=m.data["name"],
-        subtitle=f"{grp_name} · {fmt_interval(m.data['interval_hours'])}",
-        content=content,
-        footer=ui.Stack([
-            ui.Text(content=f"Last: {last_run or 'Never'}", variant="caption"),
-            ui.Tooltip(
-                content="Run health scan now",
-                children=ui.Button("Scan Now", icon="Play", variant="ghost",
-                                   size="sm",
-                                   on_click=ui.Call("run_scan", monitor_id=m.id)),
-            ),
-        ], direction="h", justify="between"),
-        on_click=ui.Call("__panel__detail", monitor_id=m.id),
-    )
-
-
-def _build_new_monitor_form() -> ui.UINode:
-    return ui.Card(
+    form = ui.Card(
         title="New Monitor",
         subtitle="Monitor domains on a recurring schedule",
         content=ui.Form(
@@ -178,10 +151,49 @@ def _build_new_monitor_form() -> ui.UINode:
                     ui.Toggle(label="Geo",   param_name="geo",       value=False),
                     ui.Toggle(label="WHOIS", param_name="whois",     value=False),
                 ], direction="h", gap=2, wrap=True),
-                ui.Select(
-                    options=INTERVAL_OPTS, value="24",
-                    param_name="interval_hours",
-                ),
+                ui.Select(options=INTERVAL_OPTS, value="24",
+                          param_name="interval_hours"),
             ],
         ),
+    )
+    return ui.Stack([tab_bar, form])
+
+
+# ─── Monitor card ─────────────────────────────────────────────────────────── #
+
+def _monitor_card(m, snap, grp_name: str) -> ui.UINode:
+    mon_status = (snap and snap.data.get("status")) or "unknown"
+    last_run   = (m.data.get("last_run_at") or "")[:10]
+    ssum       = snap.data.get("summary", {}) if snap else {}
+    total      = ssum.get("total_domains", 0)
+    n_ok_dom   = ssum.get("domains_ok", min(ssum.get("ok", 0), total))
+    pct_ok     = int(n_ok_dom / total * 100) if total else 0
+
+    if total:
+        content: ui.UINode = ui.Stack([
+            ui.Stack([status_badge(mon_status),
+                      ui.Text(content=f"{n_ok_dom}/{total} OK",
+                              variant="caption")],
+                     direction="h", gap=2),
+            ui.Progress(value=pct_ok, label=f"{pct_ok}%", variant="bar",
+                        color="red" if pct_ok < 40 else
+                              "yellow" if pct_ok < 70 else "green"),
+        ])
+    else:
+        content = ui.Stack([status_badge(mon_status),
+                            ui.Text(content="Never scanned", variant="caption")],
+                           direction="h", gap=2)
+
+    return ui.Card(
+        title=m.data["name"],
+        subtitle=f"{grp_name} · {fmt_interval(m.data['interval_hours'])}",
+        content=content,
+        footer=ui.Stack([
+            ui.Text(content=f"Last: {last_run or 'Never'}", variant="caption"),
+            ui.Tooltip(content="Run health scan now",
+                       children=ui.Button(
+                           "Scan Now", icon="Play", variant="ghost", size="sm",
+                           on_click=ui.Call("run_scan", monitor_id=m.id))),
+        ], direction="h", justify="between"),
+        on_click=ui.Call("__panel__detail", monitor_id=m.id),
     )
