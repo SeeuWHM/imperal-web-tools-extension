@@ -41,7 +41,7 @@ def _check_status(check: str, data: dict) -> str:
         total = len(regions)
         if total > 0:
             ok = sum(1 for r in regions.values()
-                     if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                     if isinstance(r, dict) and not r.get("error") and r.get("ok", False))
             if ok / total < 0.6:
                 return "warning"
         return "ok"

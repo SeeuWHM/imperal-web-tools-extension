@@ -152,7 +152,7 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
                 ok = sum(1 for r in region_items if not r.get("error") and r.get("available", True))
                 return f"{ok}/{len(region_items)} regions reachable"
         ok = sum(1 for r in regions.values()
-                 if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                 if isinstance(r, dict) and not r.get("error") and r.get("ok", False))
         total = len(regions)
         return f"{ok}/{total} regions reachable" if total else "OK"
 
@@ -187,7 +187,7 @@ def _check_subtitle(checks: dict) -> str:
                 geo_r = (data.get("http", {}).get("regions") or
                          data.get("dns", {}).get("regions") or {})
                 ok_r  = sum(1 for r in geo_r.values()
-                            if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                            if isinstance(r, dict) and not r.get("error") and r.get("ok", False))
                 tot_r = len(geo_r)
                 parts.append(f"GEO {ok_r}/{tot_r}" if tot_r else "GEO ✓")
             else:                           parts.append(f"{short} ✓")
