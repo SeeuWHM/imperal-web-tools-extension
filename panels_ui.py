@@ -248,6 +248,26 @@ def domain_items(domains_data: dict) -> list:
     return items
 
 
+def scan_tool_items(results: dict) -> list:
+    """Compact (non-expandable) ListItems for Scan Tool — one line per domain."""
+    items = []
+    for domain, checks in sorted(results.items()):
+        statuses = [c.get("status", "unknown") for c in checks.values()]
+        has_unk  = "unknown" in statuses
+        overall  = (
+            "critical" if "critical" in statuses else
+            "warning"  if "warning"  in statuses else
+            "ok"       if "ok" in statuses and not has_unk else
+            "unknown"
+        )
+        items.append(ui.ListItem(
+            id=domain, title=domain,
+            subtitle=_check_subtitle(checks),
+            badge=status_badge(overall),
+        ))
+    return items
+
+
 def quick_kv(q: dict) -> list:
     """KeyValue rows for the last quick check result block."""
     results = q.get("results")   # full audit: {check: raw_data}

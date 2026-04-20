@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from imperal_sdk import ui
 
-from panels_ui import domain_items
+from panels_ui import scan_tool_items
 
 
 # ─── Scan Tool ────────────────────────────────────────────────────────────── #
@@ -51,7 +51,7 @@ async def build_sidebar(ctx) -> ui.UINode:
         r_data = last.get("results", {})
         if r_data:
             ts    = last.get("created_at", "")[:16].replace("T", " ")
-            items = domain_items(r_data)
+            items = scan_tool_items(r_data)
             results_section = [
                 ui.Divider(label=ts),
                 ui.List(items=items, searchable=len(items) > 3),

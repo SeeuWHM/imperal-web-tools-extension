@@ -153,8 +153,16 @@ _VALID_CHECKS = {"ssl", "http", "email", "blacklist", "geo", "whois", "ports"}
 class CreateMonitorFullParams(BaseModel):
     name:           str       = Field(description="Monitor name")
     domains:        list[str] = Field(description="Domains to monitor (max 20)")
-    checks:         list[str] = Field(description="Check types: ssl, http, email, blacklist, geo, whois")
-    interval_hours: int       = Field(default=24, description="Scan interval in hours (1/6/12/24/48/168)")
+    interval_hours: int       = Field(default=24, description="Scan interval in hours")
+    # Chat callers pass checks as list; panel form passes individual boolean toggles
+    checks:    list[str] = Field(default_factory=list,
+                                  description="Check types (chat API)")
+    ssl:       bool = Field(default=False)
+    http:      bool = Field(default=False)
+    email:     bool = Field(default=False)
+    blacklist: bool = Field(default=False)
+    geo:       bool = Field(default=False)
+    whois:     bool = Field(default=False)
 
 
 @chat.function("create_monitor_full", action_type="write", event="monitor.created",
@@ -174,8 +182,14 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
     if not domains:
         return ActionResult.error("Add at least one domain.", retryable=False)
 
+    # Build checks: from list (chat) or from boolean toggles (panel form)
     checks = list(dict.fromkeys(
-        c for c in (params.checks or []) if c in _VALID_CHECKS
+        c for c in (params.checks or [
+            k for k, v in {
+                "ssl": params.ssl, "http": params.http, "email": params.email,
+                "blacklist": params.blacklist, "geo": params.geo, "whois": params.whois,
+            }.items() if v
+        ]) if c in _VALID_CHECKS
     ))
     if not checks:
         return ActionResult.error("Select at least one check type.", retryable=False)
