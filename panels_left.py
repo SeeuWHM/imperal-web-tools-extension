@@ -74,7 +74,7 @@ async def build_sidebar(ctx) -> ui.UINode:
         if snap_sum and snap_sum.get("total_domains"):
             total = snap_sum["total_domains"]
             n_ok  = snap_sum.get("domains_ok", min(snap_sum.get("ok", 0), total))
-            sub   = f"{grp_name} · {n_ok}/{total} OK · {last_run or 'never'}"
+            sub   = f"{grp_name} · {n_ok}/{total} OK"
         else:
             sub = f"{grp_name} · {fmt_interval(m.data['interval_hours'])} · never scanned"
 

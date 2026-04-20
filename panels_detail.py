@@ -11,7 +11,7 @@ from panels_ui import status_badge, domain_items, INTERVAL_OPTS, fmt_interval
 # ─── Detail builder ───────────────────────────────────────────────────────── #
 
 async def build_detail(ctx, monitor_id: str) -> ui.UINode:
-    """Per-monitor view: toolbar, pie chart, domain list, settings form."""
+    """Per-monitor view: toolbar, pie chart, domain list, inline settings."""
     mon_page, grp_page = await asyncio.gather(
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
@@ -31,40 +31,51 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     snap     = await ctx.store.get("wt_snapshots", snap_id) if snap_id else None
     status   = snap.data.get("status", "unknown") if snap else "unknown"
     domains  = snap.data.get("domains", {}) if snap else {}
-    last     = (mon.data.get("last_run_at") or "Never")[:10]
+    last     = (mon.data.get("last_run_at") or "")[:10]
     grp_name = grp_map.get(mon.data.get("group_id", ""), "—")
+    interval = fmt_interval(mon.data["interval_hours"])
 
     # ── Sticky toolbar ────────────────────────────────────────────────────── #
     toolbar = ui.Stack([
-        ui.Button("Overview", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview")),
+        ui.Tooltip(
+            content="Back to overview",
+            children=ui.Button("Overview", icon="ArrowLeft", variant="ghost", size="sm",
+                               on_click=ui.Call("__panel__overview")),
+        ),
         ui.Stack([
             ui.Text(content=mon.data["name"], variant="subheading"),
             status_badge(status),
         ], direction="horizontal", gap=2),
-        ui.Button("Scan Now", icon="Play", variant="secondary", size="sm",
-                  on_click=ui.Call("run_scan", monitor_id=mon.id)),
-    ], direction="horizontal", gap=2, justify="between", sticky=True)
+        ui.Tooltip(
+            content="Run health scan now for all domains in this monitor",
+            children=ui.Button("Scan Now", icon="Play", variant="secondary", size="sm",
+                               on_click=ui.Call("run_scan", monitor_id=mon.id)),
+        ),
+    ], direction="horizontal", gap=2, justify="between", sticky=True, wrap=False)
 
     caption = ui.Text(
-        content=f"{grp_name} · Last scan: {last} · {fmt_interval(mon.data['interval_hours'])}",
+        content=f"{grp_name} · {interval}" + (f" · Last scan: {last}" if last else " · Never scanned"),
         variant="caption",
     )
 
-    # ── Settings accordion (always shown at bottom) ───────────────────────── #
+    # ── Inline settings (collapsed Card) ─────────────────────────────────── #
     settings = ui.Accordion(sections=[{
-        "id": "settings", "title": "Monitor Settings",
-        "children": [ui.Form(
-            action="update_monitor", submit_label="Save",
-            defaults={"monitor_id": mon.id},
-            children=[
-                ui.Input(placeholder="Monitor name", param_name="name",
-                         value=mon.data["name"]),
-                ui.Select(options=INTERVAL_OPTS,
-                          value=str(mon.data["interval_hours"]),
-                          param_name="interval_hours"),
-            ],
-        )],
+        "id": "settings", "title": "⚙ Settings",
+        "children": [ui.Stack([
+            ui.Text(content="Rename monitor or change scan frequency.",
+                    variant="caption"),
+            ui.Form(
+                action="update_monitor", submit_label="Save Changes",
+                defaults={"monitor_id": mon.id},
+                children=[
+                    ui.Input(placeholder="Monitor name", param_name="name",
+                             value=mon.data["name"]),
+                    ui.Select(options=INTERVAL_OPTS,
+                              value=str(mon.data["interval_hours"]),
+                              param_name="interval_hours"),
+                ],
+            ),
+        ], gap=2)],
     }])
 
     # ── No scan yet ───────────────────────────────────────────────────────── #
@@ -89,18 +100,28 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     ] if v]
     chart_block: list = []
     if pie_data:
-        chart_block = [ui.Chart(
-            data=pie_data, type="pie", x_key="status", height=180,
-            colors={"OK": "#22c55e", "Warning": "#eab308", "Critical": "#ef4444", "Unavailable": "#8b5cf6"},
-        )]
+        chart_block = [
+            ui.Text(content="Check Results Breakdown", variant="label"),
+            ui.Chart(
+                data=pie_data, type="pie", x_key="status", height=180,
+                colors={"OK": "#22c55e", "Warning": "#eab308",
+                        "Critical": "#ef4444", "Unavailable": "#8b5cf6"},
+            ),
+        ]
 
-    summary = ui.Text(
-        content=(f"{len(domains)} domains · {n_ok} OK"
-                 + (f" · {n_warn} warning" if n_warn else "")
-                 + (f" · {n_crit} critical" if n_crit else "")
-                 + (f" · {n_unk} unavailable" if n_unk else "")),
-        variant="caption",
-    )
+    n_dom  = len(domains)
+    ssum   = snap.data.get("summary", {}) if snap else {}
+    n_d_ok = ssum.get("domains_ok",       sum(1 for d in domains.values()
+                       if all(c.get("status") == "ok" for c in d.values())))
+    summary_parts = [f"{n_dom} domain{'s' if n_dom != 1 else ''}",
+                     f"{n_d_ok} OK"]
+    if ssum.get("domains_warning", n_warn):
+        summary_parts.append(f"{ssum.get('domains_warning', n_warn)} warning")
+    if ssum.get("domains_critical", n_crit):
+        summary_parts.append(f"{ssum.get('domains_critical', n_crit)} critical")
+    if ssum.get("domains_unknown", n_unk):
+        summary_parts.append(f"{ssum.get('domains_unknown', n_unk)} unavailable")
+    summary = ui.Text(content=" · ".join(summary_parts), variant="caption")
 
     crit_alert: list = []
     if n_crit:

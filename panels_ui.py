@@ -87,9 +87,9 @@ def fmt_interval(hours: int) -> str:
 
 def status_badge(status: str) -> ui.Badge:
     """Colored Badge for monitor/domain status. Expects: ok/warning/critical/unknown."""
-    _color = {"ok": "success", "warning": "warning", "critical": "danger"}
-    _label = {"ok": "OK",      "warning": "Warning",  "critical": "Critical"}
-    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "neutral"))
+    _color = {"ok": "green", "warning": "yellow", "critical": "red"}
+    _label = {"ok": "OK",    "warning": "Warning", "critical": "Critical"}
+    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "gray"))
 
 
 def _fmt_check_value(chk: str, data: dict | None) -> str:
@@ -126,14 +126,18 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         return f"Grade {grade}"
 
     if chk == "blacklist":
-        verdict = data.get("verdict", "clean")
-        listed  = data.get("listed_on") or []
+        verdict     = data.get("verdict", "clean")
+        resolved_ip = data.get("resolved_ip")
+        if not resolved_ip and verdict == "clean":
+            return "Unresolvable"
         if verdict == "clean":
             return "Clean"
-        n = len(listed)
-        if n == 0:
-            return "Listed"
-        return f"Listed on {n} {'list' if n == 1 else 'lists'}"
+        total = data.get("ip_listed_count", 0) + data.get("domain_listed_count", 0)
+        names = ([r["name"] for r in data.get("ip_results",    []) if r.get("listed")]
+               + [r["name"] for r in data.get("surbl_results", []) if r.get("listed")])[:3]
+        more  = f" +{total - len(names)}" if total > len(names) else ""
+        prefix = "Critical" if verdict == "critical" else "Listed"
+        return (f"{prefix}: {', '.join(names)}{more}" if names else f"{prefix} on {total} DNSBL(s)")
 
     if chk == "geo":
         # Geo data is {dns: {regions: {...}}, http: {regions: {...}}, ssl: {...}}
@@ -197,7 +201,7 @@ def _check_subtitle(checks: dict) -> str:
                 parts.append(f"SSL {d}d!" if d is not None else "SSL !")
             elif chk in ("http", "email"):  parts.append(f"{lbl} {data.get('grade', '?')}")
             elif chk == "blacklist":
-                n_bl = len(data.get("listed_on") or [])
+                n_bl = data.get("ip_listed_count", 0) + data.get("domain_listed_count", 0)
                 parts.append(f"BL({n_bl})" if n_bl else "BL Listed")
             elif chk == "geo":
                 geo_r = (data.get("http", {}).get("regions") or
