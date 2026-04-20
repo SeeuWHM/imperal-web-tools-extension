@@ -21,17 +21,20 @@ async def build_sidebar(ctx) -> ui.UINode:
     skel_mons = skel.get("monitors", {})
     grp_map   = {g.id: g.data["name"] for g in grp_page.data}
 
-    # Load actual snapshot statuses directly — skeleton is cached and can be
+    # Load snapshot status + summary directly — skeleton is cached and can be
     # stale right after a scan (skeleton refreshes on its own schedule)
-    async def _snap_status(m):
+    async def _snap_data(m):
         sid = m.data.get("last_snapshot_id")
         if not sid:
-            return m.id, "unknown"
+            return m.id, "unknown", {}
         snap = await ctx.store.get("wt_snapshots", sid)
-        return m.id, (snap.data.get("status", "unknown") if snap else "unknown")
+        if snap:
+            return m.id, snap.data.get("status", "unknown"), snap.data.get("summary", {})
+        return m.id, "unknown", {}
 
-    status_pairs = await asyncio.gather(*[_snap_status(m) for m in mon_page.data])
-    live_status  = dict(status_pairs)
+    snap_rows    = await asyncio.gather(*[_snap_data(m) for m in mon_page.data])
+    live_status  = {mid: st   for mid, st, _   in snap_rows}
+    live_summary = {mid: summ for mid, _,  summ in snap_rows}
 
     # ── Health summary (1 line) ───────────────────────────────────────────── #
     n_total   = len(mon_page.data)
@@ -64,16 +67,13 @@ async def build_sidebar(ctx) -> ui.UINode:
     # ── Monitor list ──────────────────────────────────────────────────────── #
     mon_items = []
     for m in mon_page.data:
-        skel_m   = skel_mons.get(m.id, {})
         grp_name = grp_map.get(m.data.get("group_id", ""), "—")
-        status   = skel_m.get("status", "unknown")
-        skel_sum = skel_m.get("summary", {})
-        last_run = (skel_m.get("last_run_at") or "")[:10]
+        last_run = (m.data.get("last_run_at") or "")[:10]    # live from store, not skeleton
+        snap_sum = live_summary.get(m.id, {})
 
-        if skel_sum and skel_sum.get("total_domains"):
-            total = skel_sum["total_domains"]
-            # prefer domain-level count; fallback for old snapshots uses check-level capped at total
-            n_ok  = skel_sum.get("domains_ok", min(skel_sum.get("ok", 0), total))
+        if snap_sum and snap_sum.get("total_domains"):
+            total = snap_sum["total_domains"]
+            n_ok  = snap_sum.get("domains_ok", min(snap_sum.get("ok", 0), total))
             sub   = f"{grp_name} · {n_ok}/{total} OK · {last_run or 'never'}"
         else:
             sub = f"{grp_name} · {fmt_interval(m.data['interval_hours'])} · never scanned"

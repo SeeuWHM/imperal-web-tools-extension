@@ -87,9 +87,9 @@ def fmt_interval(hours: int) -> str:
 
 def status_badge(status: str) -> ui.Badge:
     """Colored Badge for monitor/domain status. Expects: ok/warning/critical/unknown."""
-    _color = {"ok": "green", "warning": "yellow", "critical": "red"}
-    _label = {"ok": "OK",    "warning": "Warning", "critical": "Critical"}
-    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "gray"))
+    _color = {"ok": "success", "warning": "warning", "critical": "danger"}
+    _label = {"ok": "OK",      "warning": "Warning",  "critical": "Critical"}
+    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "neutral"))
 
 
 def _fmt_check_value(chk: str, data: dict | None) -> str:

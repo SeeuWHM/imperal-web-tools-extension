@@ -72,11 +72,11 @@ async def build_overview(ctx) -> ui.UINode:
     stats = ui.Stats([
         ui.Stat(label="Monitors", value=len(mon_page.data), icon="Monitor"),
         ui.Stat(label="OK",       value=n_ok,               icon="CheckCircle",
-                color="green"),
+                color="success"),
         ui.Stat(label="Warning",  value=n_warn,             icon="AlertTriangle",
-                color="yellow"),
+                color="warning"),
         ui.Stat(label="Critical", value=n_crit,             icon="XCircle",
-                color="red"),
+                color="danger"),
     ])
 
     # ── Bar chart: domain health per monitor ──────────────────────────────── #
