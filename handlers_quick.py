@@ -177,7 +177,7 @@ def _ip_status(check: str, data: dict) -> str:
 
 
 @chat.function("run_ip_scan", action_type="write", event="scan.tool",
-               description="Scan IP addresses — IP lookup (geo/ASN), blacklist (30 DNSBL), reverse DNS (PTR), port scan, geo ping from 4 regions.")
+               description="Scan IP addresses — IP lookup (geo/ASN), blacklist (29 DNSBL), reverse DNS (PTR), port scan, geo ping from 4 regions.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
     if not ips:
@@ -215,7 +215,14 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
 
     async def _scan(ip: str) -> tuple[str, dict]:
         async with sem:
-            return ip, dict(await asyncio.gather(*[_chk(ip, c) for c in checks]))
+            raw = await asyncio.gather(*[_chk(ip, c) for c in checks], return_exceptions=True)
+            outcome: dict = {}
+            for c, r in zip(checks, raw):
+                if isinstance(r, tuple):
+                    outcome[r[0]] = r[1]
+                else:
+                    outcome[c] = {"status": "unknown", "data": None, "error": type(r).__name__}
+            return ip, outcome
 
     results = dict(await asyncio.gather(*[_scan(ip) for ip in ips]))
     now     = datetime.datetime.utcnow().isoformat()

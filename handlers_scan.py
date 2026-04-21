@@ -73,9 +73,16 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
                 d = body.get("data") if body.get("success") else None
                 return check, {"status": _check_status(check, d or {}), "data": d}
             except Exception as exc:
-                return check, {"status": "unknown", "error": str(exc)}
+                return check, {"status": "unknown", "data": None, "error": str(exc)}
 
-    return dict(await asyncio.gather(*[_one(c) for c in checks]))
+    raw = await asyncio.gather(*[_one(c) for c in checks], return_exceptions=True)
+    result: dict = {}
+    for c, r in zip(checks, raw):
+        if isinstance(r, tuple):
+            result[r[0]] = r[1]
+        else:
+            result[c] = {"status": "unknown", "data": None, "error": type(r).__name__}
+    return result
 
 
 # ─── Scan Runner ──────────────────────────────────────────────────────────── #
