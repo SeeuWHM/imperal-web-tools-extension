@@ -21,9 +21,9 @@ _RIGHT_REFRESH = "on_event:scan.completed"
 
 @ext.panel("sidebar", slot="left", title="Web Tools", icon="Globe",
            refresh=_LEFT_REFRESH)
-async def panel_sidebar(ctx, **kwargs):
-    """Left panel: Scan Tool — on-demand multi-domain checks."""
-    return await build_sidebar(ctx)
+async def panel_sidebar(ctx, view: str = "domain", **kwargs):
+    """Left panel: Domain Scan / IP Scan (tab buttons)."""
+    return await build_sidebar(ctx, view=view)
 
 
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",

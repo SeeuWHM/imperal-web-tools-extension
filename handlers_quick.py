@@ -146,6 +146,93 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     )
 
 
+# ─── IP Scan Tool (left panel — IP-specific checks) ──────────────────────── #
+
+class IpScanParams(BaseModel):
+    domains:   list[str] = Field(description="IP addresses to scan (max 5)")
+    ip_lookup: bool = Field(default=False)
+    blacklist: bool = Field(default=False)
+    reverse:   bool = Field(default=False)
+    ports:     bool = Field(default=False)
+    geo_ping:  bool = Field(default=False)
+
+
+def _ip_status(check: str, data: dict) -> str:
+    if not data:
+        return "unknown"
+    if check == "blacklist":
+        v = data.get("verdict", "clean")
+        return "critical" if v == "critical" else "warning" if v == "listed" else "ok"
+    if check == "geo_ping":
+        regions = data.get("regions", {})
+        total   = len(regions)
+        if total > 0:
+            reach = sum(1 for r in regions.values()
+                        if isinstance(r, dict) and r.get("reachable"))
+            if reach / total < 0.6:
+                return "warning"
+    return "ok"
+
+
+@chat.function("run_ip_scan", action_type="write", event="scan.tool",
+               description="Scan IP addresses — IP lookup (geo/ASN), blacklist (30 DNSBL), reverse DNS (PTR), port scan, geo ping from 4 regions.")
+async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
+    ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
+    if not ips:
+        return ActionResult.error("Enter at least one IP address.", retryable=False)
+
+    checks = {k: v for k, v in {
+        "ip_lookup": params.ip_lookup, "blacklist": params.blacklist,
+        "reverse": params.reverse, "ports": params.ports, "geo_ping": params.geo_ping,
+    }.items() if v}
+    if not checks:
+        return ActionResult.error("Enable at least one check.", retryable=False)
+
+    base = WEB_TOOLS_URL
+    _urls = {
+        "ip_lookup": lambda ip: f"{base}/v1/network/ip-lookup/{ip}",
+        "blacklist":  lambda ip: f"{base}/v1/blacklist/ip/{ip}",
+        "reverse":    lambda ip: f"{base}/v1/network/reverse/{ip}",
+        "ports":      lambda ip: f"{base}/v1/ports/scan/{ip}",
+        "geo_ping":   lambda ip: f"{base}/v1/geo/ping/{ip}",
+    }
+
+    async def _chk(ip: str, chk: str) -> tuple[str, dict]:
+        try:
+            resp = await ctx.http.get(_urls[chk](ip))
+            body = resp.json()
+            d    = body.get("data") if body.get("success") else None
+            return chk, {"status": _ip_status(chk, d or {}), "data": d}
+        except Exception as exc:
+            return chk, {"status": "unknown", "error": str(exc)}
+
+    sem = asyncio.Semaphore(3)
+
+    async def _scan(ip: str) -> tuple[str, dict]:
+        async with sem:
+            return ip, dict(await asyncio.gather(*[_chk(ip, c) for c in checks]))
+
+    results = dict(await asyncio.gather(*[_scan(ip) for ip in ips]))
+    now     = datetime.datetime.utcnow().isoformat()
+
+    spage = await ctx.store.query("wt_ip_scan_results",
+                                   where={"owner_id": ctx.user.id}, limit=1)
+    doc = {"owner_id": ctx.user.id, "ips": ips, "checks": list(checks),
+           "results": results, "created_at": now}
+    if spage.data:
+        await ctx.store.update("wt_ip_scan_results", spage.data[0].id, doc)
+    else:
+        await ctx.store.create("wt_ip_scan_results", doc)
+
+    issues = sum(1 for ir in results.values()
+                 for r in ir.values() if r.get("status") in ("warning", "critical"))
+    return ActionResult.success(
+        data={"scanned": len(ips), "checks": list(checks), "issues": issues},
+        summary=f"Scanned {len(ips)} IP(s) — {issues} issue(s)",
+        refresh_panels=["__panel__sidebar"],
+    )
+
+
 # ─── Panel Data (chat LLM context) ────────────────────────────────────────── #
 
 @chat.function("get_panel_data", action_type="read",

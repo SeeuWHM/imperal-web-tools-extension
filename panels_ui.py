@@ -14,17 +14,6 @@ CHECKS_OPTS = [
     {"value": "whois",     "label": "WHOIS"},
 ]
 
-PRESET_OPTS = [
-    {"value": "full",      "label": "Full Audit — DNS · SSL · HTTP · Email · BL"},
-    {"value": "dns",       "label": "DNS Records"},
-    {"value": "ssl",       "label": "SSL Certificate"},
-    {"value": "http",      "label": "HTTP Headers"},
-    {"value": "email",     "label": "Email Deliverability"},
-    {"value": "blacklist", "label": "Blacklist"},
-    {"value": "geo",       "label": "Geo Probe — EU / US / SG / MD"},
-    {"value": "ports",     "label": "Port Scan"},
-]
-
 INTERVAL_OPTS = [
     {"value": "1",   "label": "Every hour"},
     {"value": "6",   "label": "Every 6 hours"},
@@ -44,32 +33,6 @@ PROFILE_CHECK_OPTS = [
     {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
 ]
 PROFILE_CHECK_DEFAULTS = ["ssl", "http", "email", "blacklist"]
-
-# Check type labels and tooltip descriptions (reference)
-CHECKS_INFO: dict[str, tuple[str, str]] = {
-    "ssl":       ("SSL Certificate",      "Grade A-F · days until expiry · issuer & chain"),
-    "http":      ("HTTP Headers",         "Security grade A-F · HSTS, CSP, X-Frame-Options, XCTO"),
-    "email":     ("Email Deliverability", "SPF · DMARC · DKIM grade A-F · catches delivery issues"),
-    "blacklist": ("Blacklist",            "IP vs 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) · clean / listed"),
-    "geo":       ("Geo Probe",            "Availability from 4 regions: EU · US · SG · MD"),
-    "whois":     ("WHOIS",               "Domain registrar · expiry date · nameservers"),
-    "dns":       ("DNS Records",          "A · MX · NS · TXT record lookup · basic DNS health"),
-}
-
-
-_CHECK_ORDER = ["ssl", "http", "email", "blacklist", "geo", "whois", "dns"]
-
-
-def build_check_toggles(active: list[str]) -> ui.UINode:
-    """Toggle per check with caption description — for profile create/edit forms."""
-    rows = []
-    for key in _CHECK_ORDER:
-        label, tooltip = CHECKS_INFO[key]
-        rows.append(ui.Stack([
-            ui.Toggle(label=label, param_name=key, value=(key in active)),
-            ui.Text(content=tooltip, variant="caption"),
-        ], gap=0))
-    return ui.Stack(rows, gap=2)
 
 
 def fmt_interval(hours: int) -> str:
@@ -268,31 +231,56 @@ def scan_tool_items(results: dict) -> list:
     return items
 
 
-def quick_kv(q: dict) -> list:
-    """KeyValue rows for the last quick check result block."""
-    results = q.get("results")   # full audit: {check: raw_data}
-    result  = q.get("result")    # single check: raw_data dict
-    preset  = q.get("preset", "")
+# ─── IP Scan result helpers ───────────────────────────────────────────────── #
 
-    if results and isinstance(results, dict):
-        return [
-            {"key": chk.upper(), "value": _fmt_check_value(chk, data)}
-            for chk, data in results.items()
-            if isinstance(data, dict)
-        ]
+def _fmt_ip_val(chk: str, data: dict) -> str:
+    """One-line summary for a single IP check result."""
+    if not data:
+        return ""
+    if chk == "ip_lookup":
+        country = data.get("country", "")
+        org     = (data.get("org") or "")[:22]
+        return f"{country} · {org}".strip(" ·") or "—"
+    if chk == "blacklist":
+        verdict = data.get("verdict", "clean")
+        if verdict == "clean":
+            return "BL Clean"
+        total = data.get("listed_count", 0)
+        names = [r["name"] for r in (data.get("results") or []) if r.get("listed")][:2]
+        more  = f" +{total - len(names)}" if total > len(names) else ""
+        return (f"BL: {', '.join(names)}{more}" if names
+                else f"BL Listed ({total})")
+    if chk == "reverse":
+        hn = data.get("hostname") or data.get("ptr")
+        return f"PTR: {hn}" if hn else "No PTR"
+    if chk == "ports":
+        open_p = [str(p["port"]) for p in (data.get("ports") or [])
+                  if p.get("status") == "open"]
+        return f"Open: {', '.join(open_p[:4])}" if open_p else "All closed"
+    if chk == "geo_ping":
+        regions = data.get("regions", {})
+        reach   = sum(1 for r in regions.values()
+                      if isinstance(r, dict) and r.get("reachable"))
+        return f"Ping {reach}/{len(regions)}"
+    return chk.upper()
 
-    if result and isinstance(result, dict):
-        # Single-check result — format based on preset
-        val = _fmt_check_value(preset, result) if preset else "OK"
-        if val == "OK":
-            # Fall back: show top-level scalar fields
-            skip = {"raw", "error", "success", "checked_at", "timestamp"}
-            return [
-                {"key": k.replace("_", " ").title(), "value": str(v)}
-                for k, v in result.items()
-                if k not in skip and not isinstance(v, (dict, list))
-            ][:8]
-        return [{"key": preset.upper(), "value": val}]
 
-    return []
+def ip_scan_items(results: dict) -> list:
+    """Compact non-expandable ListItems for IP Scan Tool."""
+    items = []
+    for ip, checks in sorted(results.items()):
+        statuses = [c.get("status", "ok") for c in checks.values()]
+        overall  = (
+            "critical" if "critical" in statuses else
+            "warning"  if "warning"  in statuses else "ok"
+        )
+        parts    = [_fmt_ip_val(chk, (res.get("data") or {}))
+                    for chk, res in checks.items()]
+        subtitle = " · ".join(p for p in parts if p)
+        items.append(ui.ListItem(
+            id=ip, title=ip,
+            subtitle=subtitle or "—",
+            badge=status_badge(overall),
+        ))
+    return items
 
