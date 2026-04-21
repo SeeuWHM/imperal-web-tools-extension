@@ -92,7 +92,7 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
 # ─── Scan Tool (left panel — multi-domain, toggle checks) ────────────────── #
 
 class ScanToolParams(BaseModel):
-    domains:     list[str] = Field(description="Domains or IPs to scan (max 10)")
+    domains:     list[str] = Field(default_factory=list, description="Domains or IPs to scan (max 10)")
     ssl:         bool = Field(default=False)
     http:        bool = Field(default=False)
     email:       bool = Field(default=False)
@@ -151,7 +151,7 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
 # ─── IP Scan Tool (left panel — IP-specific checks) ──────────────────────── #
 
 class IpScanParams(BaseModel):
-    domains:   list[str] = Field(description="IP addresses to scan (max 5)")
+    domains:   list[str] = Field(default_factory=list, description="IP addresses to scan (max 5)")
     ip_lookup: bool = Field(default=False)
     blacklist: bool = Field(default=False)
     reverse:   bool = Field(default=False)
