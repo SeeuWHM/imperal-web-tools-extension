@@ -2,7 +2,7 @@ Web Diagnostics for Imperal Cloud — DNS, SSL, HTTP, email, blacklists, ports, 
 SEO, network diagnostics, automated monitoring. Competes with DNSChecker.org + MXToolbox + IntoDNS,
 with unique multi-region probes (EU/US/SG/MD simultaneously) and AI-powered analysis.
 
-## Complete function reference — 32 functions
+## Complete function reference — 31 functions
 
 ### On-demand diagnostics
 dns_lookup — A/AAAA/IP/MX/NS/TXT/CNAME/SRV/DNSSEC/all; propagation across 6 global servers

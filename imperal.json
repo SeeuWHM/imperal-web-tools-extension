@@ -1,6 +1,6 @@
 {
   "app_id": "web-tools",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "capabilities": ["store:read", "store:write"],
   "tools": [
     {
@@ -22,7 +22,7 @@
     },
     {
       "name": "__panel__sidebar",
-      "description": "Panel left: monitor navigation + health summary",
+      "description": "Panel left: Domain Scan and IP Scan (tab buttons). TagInput domains, toggle checks, expandable results per domain/IP with rich detail.",
       "scopes": [],
       "parameters": {
         "params": {"type": "string", "required": true}
@@ -30,7 +30,7 @@
     },
     {
       "name": "__panel__overview",
-      "description": "Panel right: health dashboard — stats, bar chart, quick check, monitor cards",
+      "description": "Panel right: monitors — stats, bar chart, sorted cards. view=monitors (default) or view=new (New Monitor form with toggles).",
       "scopes": [],
       "parameters": {
         "params": {"type": "string", "required": true}
@@ -38,7 +38,7 @@
     },
     {
       "name": "__panel__detail",
-      "description": "Panel right: monitor detail — pie chart, domain list, settings",
+      "description": "Panel right: monitor detail — pie chart, expandable domain list (per-check KV), Settings accordion.",
       "scopes": [],
       "parameters": {
         "params": {"type": "string", "required": true}

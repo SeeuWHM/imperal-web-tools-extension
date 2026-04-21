@@ -1,4 +1,4 @@
-"""web-tools v1.2.0 · Web Diagnostics Extension — entry point."""
+"""web-tools v1.4.0 · Web Diagnostics Extension — entry point."""
 from __future__ import annotations
 
 import sys
