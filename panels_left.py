@@ -55,12 +55,13 @@ def _tabs(active: str) -> ui.UINode:
 
 
 def _toggle_stack(toggles: list) -> ui.UINode:
-    """Vertical stack of Toggles each wrapped in a Tooltip."""
+    """Vertical stack of Toggles — HelpCircle icon beside each carries the tooltip."""
     return ui.Stack([
-        ui.Tooltip(
-            content=tip,
-            children=ui.Toggle(label=lbl, param_name=key, value=default),
-        )
+        ui.Stack([
+            ui.Toggle(label=lbl, param_name=key, value=default),
+            ui.Tooltip(content=tip,
+                       children=ui.Icon(name="HelpCircle", size=13)),
+        ], direction="h", gap=2, align="center")
         for key, lbl, tip, default in toggles
     ], direction="v", gap=2)
 
@@ -89,15 +90,28 @@ async def _domain_view(ctx) -> ui.UINode:
         last  = spage.data[0].data
         rdata = last.get("results", {})
         if rdata:
-            ts   = last.get("created_at", "")[:16].replace("T", " ")
-            crit = sum(1 for d in rdata.values()
-                       for r in d.values() if r.get("status") == "critical")
+            ts    = last.get("created_at", "")[:16].replace("T", " ")
+            crit  = sum(1 for d in rdata.values()
+                        for r in d.values() if r.get("status") == "critical")
+            warn  = sum(1 for d in rdata.values()
+                        for r in d.values() if r.get("status") == "warning")
             alert: list = ([ui.Alert(type="error",
                                      message=f"{crit} critical issue(s) detected")]
                            if crit else [])
             results_section = [
                 ui.Divider(label=ts),
                 *alert,
+                ui.Stack([
+                    ui.Text(content=f"{len(rdata)} domain(s) · {crit} critical · {warn} warning",
+                            variant="caption"),
+                    ui.Tooltip(
+                        content="Ask AI to explain these results",
+                        children=ui.Button(
+                            "Explain", icon="MessageCircle", variant="ghost", size="sm",
+                            on_click=ui.Send(_ai_msg("domain", rdata, ts)),
+                        ),
+                    ),
+                ], direction="h", justify="between"),
                 ui.List(items=scan_tool_items(rdata)),
             ]
     return ui.Stack([_tabs("domain"), form, *results_section])
@@ -125,18 +139,44 @@ async def _ip_view(ctx) -> ui.UINode:
         last  = spage.data[0].data
         rdata = last.get("results", {})
         if rdata:
-            ts   = last.get("created_at", "")[:16].replace("T", " ")
-            crit = sum(1 for ir in rdata.values()
-                       for r in ir.values() if r.get("status") == "critical")
+            ts    = last.get("created_at", "")[:16].replace("T", " ")
+            crit  = sum(1 for ir in rdata.values()
+                        for r in ir.values() if r.get("status") == "critical")
+            warn  = sum(1 for ir in rdata.values()
+                        for r in ir.values() if r.get("status") == "warning")
             alert: list = ([ui.Alert(type="error",
                                      message=f"{crit} critical issue(s) detected")]
                            if crit else [])
             results_section = [
                 ui.Divider(label=ts),
                 *alert,
+                ui.Stack([
+                    ui.Text(content=f"{len(rdata)} IP(s) · {crit} critical · {warn} warning",
+                            variant="caption"),
+                    ui.Tooltip(
+                        content="Ask AI to explain these results",
+                        children=ui.Button(
+                            "Explain", icon="MessageCircle", variant="ghost", size="sm",
+                            on_click=ui.Send(_ai_msg("IP", rdata, ts)),
+                        ),
+                    ),
+                ], direction="h", justify="between"),
                 ui.List(items=_ip_scan_items(rdata)),
             ]
     return ui.Stack([_tabs("ip"), form, *results_section])
+
+
+# ─── AI summary message builders ─────────────────────────────────────────── #
+
+def _ai_msg(kind: str, results: dict, ts: str) -> str:
+    issues = [f"{t} — {chk}: {res['status']}"
+              for t, checks in results.items()
+              for chk, res in checks.items()
+              if res.get("status") in ("warning", "critical")]
+    if issues:
+        return (f"Analyze my {kind} scan from {ts}. Issues:\n" +
+                "\n".join(issues[:12]) + "\n\nWhat does each mean and how do I fix it?")
+    return f"Review my {kind} scan from {ts} — all looks OK. Any concerns?"
 
 
 # ─── IP Scan helpers (local — only used here) ─────────────────────────────── #
@@ -145,7 +185,7 @@ def _fmt_ip_val(chk: str, data: dict) -> str:
     if not data:
         return ""
     if chk == "ip_lookup":
-        country = data.get("country", "")
+        country = data.get("country_name") or data.get("country") or ""
         org     = (data.get("org") or "")[:22]
         return f"{country} · {org}".strip(" ·") or "—"
     if chk == "blacklist":
@@ -176,19 +216,24 @@ def _ip_expanded_kv(checks: dict) -> list:
     for chk, res in checks.items():
         data = res.get("data") or {}
         if not data:
+            err = res.get("error", "")
+            if err:
+                kv.append({"key": chk.upper(), "value": f"Error: {str(err)[:50]}"})
             continue
         if chk == "ip_lookup":
-            country = data.get("country", "—")
-            org     = data.get("org", "—")
-            asn_raw = data.get("asn", "")
-            asn     = (f"AS{asn_raw}" if asn_raw and not str(asn_raw).startswith("AS")
-                       else str(asn_raw))
-            network = data.get("network", "")
+            country = data.get("country_name") or data.get("country") or "—"
+            org     = data.get("org") or "—"
+            asn     = data.get("asn") or ""
+            asn_d   = data.get("asn_description") or ""
+            network = data.get("network") or ""
+            netname = data.get("netname") or ""
             kv.append({"key": "Location", "value": f"{country} · {org}"})
             if asn:
-                kv.append({"key": "ASN", "value": asn})
+                kv.append({"key": "ASN",
+                           "value": asn + (f" · {asn_d}" if asn_d else "")})
             if network:
-                kv.append({"key": "Network", "value": str(network)})
+                kv.append({"key": "Network",
+                           "value": network + (f" ({netname})" if netname else "")})
         elif chk == "blacklist":
             verdict = data.get("verdict", "clean")
             checked = data.get("total_checked", 30)

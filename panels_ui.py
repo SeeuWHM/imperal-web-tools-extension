@@ -129,21 +129,22 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         return "Found"
 
     if chk == "smtp":
-        ports = data.get("ports", [])
-        connected = [str(p["port"]) for p in ports if p.get("connected")]
-        if not connected:
+        if not data.get("reachable"):
             return "Not reachable"
-        starttls = any(p.get("starttls_supported") for p in ports if p.get("connected"))
-        return f"Port {'/'.join(connected)} · {'STARTTLS ✓' if starttls else 'No STARTTLS'}"
+        port    = data.get("best_port", "")
+        tls     = data.get("starttls_available", False)
+        sw      = data.get("server_software") or ""
+        return (f"Port {port} · {'STARTTLS ✓' if tls else 'No STARTTLS'}"
+                + (f" · {sw}" if sw else ""))
 
     if chk == "propagation":
-        consistent  = data.get("consistent", True)
-        servers     = data.get("servers", [])
-        ok_count    = sum(1 for s in servers if s.get("ok"))
-        total       = len(servers)
+        propagated = data.get("fully_propagated", True)
+        servers    = data.get("servers", [])
+        ok_count   = sum(1 for s in servers if s.get("status") == "success")
+        total      = len(servers)
         if not total:
             return "—"
-        return (f"Consistent · {ok_count}/{total} servers" if consistent
+        return (f"Consistent · {ok_count}/{total} servers" if propagated
                 else f"Inconsistent! · {ok_count}/{total} agree")
 
     return "OK"
@@ -187,7 +188,7 @@ def _check_subtitle(checks: dict) -> str:
                 geo_r = (data.get("http", {}).get("regions") or
                          data.get("dns", {}).get("regions") or {})
                 ok_r  = sum(1 for r in geo_r.values()
-                            if isinstance(r, dict) and not r.get("error") and r.get("available", True))
+                            if isinstance(r, dict) and not r.get("error") and r.get("ok", False))
                 tot_r = len(geo_r)
                 parts.append(f"GEO {ok_r}/{tot_r}!" if tot_r else "GEO !")
             else:                           parts.append(f"{short} !")

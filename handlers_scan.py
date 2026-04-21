@@ -42,10 +42,9 @@ def _check_status(check: str, data: dict) -> str:
                 return "warning"
         return "ok"
     if check == "smtp":
-        ports = data.get("ports", [])
-        return "ok" if any(p.get("connected") for p in ports) else "warning"
+        return "ok" if data.get("reachable") else "warning"
     if check == "propagation":
-        return "ok" if data.get("consistent", True) else "warning"
+        return "ok" if data.get("fully_propagated", True) else "warning"
     return "ok"
 
 
