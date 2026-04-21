@@ -92,16 +92,14 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
 # ─── Scan Tool (left panel — multi-domain, toggle checks) ────────────────── #
 
 class ScanToolParams(BaseModel):
-    domains:     list[str] = Field(description="Domains or IPs to scan (max 10)")
-    ssl:         bool = Field(default=False)
-    http:        bool = Field(default=False)
-    email:       bool = Field(default=False)
-    blacklist:   bool = Field(default=False)
-    geo:         bool = Field(default=False)
-    whois:       bool = Field(default=False)
-    ports:       bool = Field(default=False)
-    smtp:        bool = Field(default=False)
-    propagation: bool = Field(default=False)
+    domains:   list[str] = Field(description="Domains or IPs to scan (max 10)")
+    ssl:       bool = Field(default=False)
+    http:      bool = Field(default=False)
+    email:     bool = Field(default=False)
+    blacklist: bool = Field(default=False)
+    geo:       bool = Field(default=False)
+    whois:     bool = Field(default=False)
+    ports:     bool = Field(default=False)
 
 
 @chat.function("run_scan_tool", action_type="write", event="scan.tool",
@@ -115,8 +113,8 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
 
     checks = [k for k, v in {
         "ssl": params.ssl, "http": params.http, "email": params.email,
-        "blacklist": params.blacklist, "geo": params.geo, "whois": params.whois,
-        "ports": params.ports, "smtp": params.smtp, "propagation": params.propagation,
+        "blacklist": params.blacklist, "geo": params.geo,
+        "whois": params.whois, "ports": params.ports,
     }.items() if v]
     if not checks:
         return ActionResult.error("Enable at least one check.", retryable=False)

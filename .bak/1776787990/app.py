@@ -11,7 +11,7 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.4.0",
+    version="1.3.0",
     capabilities=["store:read", "store:write"],
 )
 
@@ -24,20 +24,17 @@ chat = ChatExtension(
     ext=ext,
     tool_name="tool_web_tools_chat",
     description=(
-        "Web diagnostics and domain health monitoring — DNS A AAAA MX NS TXT CNAME SRV DNSSEC "
-        "propagation authoritative nameserver, SSL grade A-F expiry chain SANs TLS versions, "
-        "WHOIS domain registrar dates nameservers IP ASN org network, HTTP security headers grade "
-        "A+ to F HSTS CSP XFO missing headers redirects chain status response time, SEO meta tags "
-        "title description robots.txt sitemap.xml Google indexing, email SPF DMARC DKIM BIMI grade "
-        "A-F generate records trace headers find originating IP, blacklist 30 DNSBL Spamhaus ZEN SBL "
-        "XBL SpamCop Barracuda SURBL verdict clean listed critical, TCP ports web mail database all "
-        "presets single port open closed filtered, SMTP test MX 587 25 465 STARTTLS AUTH banner, "
-        "multi-region geo probe EU US SG MD ping latency HTTP availability DNS mismatch anycast SSL "
-        "MTR traceroute, network ping traceroute PTR reverse DNS IP geolocation ASN WHOIS prefixes, "
-        "domain health monitors recurring automated scan schedule hourly daily weekly, "
-        "create_monitor_full one-step monitor setup domains checks interval, "
-        "run_scan_tool bulk domain scan toggles ssl http email blacklist geo whois smtp propagation, "
-        "run_ip_scan bulk IP scan ip_lookup blacklist reverse ports geo_ping"
+        "Web diagnostics for any domain or IP — DNS records A AAAA MX NS TXT CNAME SRV DNSSEC "
+        "propagation authoritative, SSL certificate validity issuer expiry grade chain SANs TLS, "
+        "WHOIS domain registrar dates nameservers registrant status, HTTP security headers grade "
+        "A+ to F HSTS CSP XFO XCTO redirects chain status response time, SEO meta tags title "
+        "description robots.txt sitemap.xml Google indexing, email deliverability SPF DMARC DKIM "
+        "BIMI grade generate record trace headers, IP blacklist 30 DNSBL Spamhaus SpamCop Barracuda "
+        "verdict clean listed critical, TCP port scan web mail database preset open closed filtered, "
+        "SMTP test MX connectivity EHLO STARTTLS AUTH banner, IP geolocation ASN country org, "
+        "multi-region geo probe EU US SG MD latency mismatch anycast, full domain audit parallel, "
+        "domain groups check profiles monitors create_monitor run_scan trigger scan immediate scan "
+        "wt_snapshots domain health snapshot scan results list_monitors list_domain_groups"
     ),
     system_prompt=_SYSTEM_PROMPT,
     model="claude-haiku-4-5-20251001",

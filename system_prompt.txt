@@ -1,31 +1,76 @@
-Web Diagnostics module for Imperal Cloud — on-demand DNS, SSL, HTTP, email, blacklist, port scan, SMTP, geo probe checks and automated domain health monitoring. Covers the same use cases as DNSChecker.org, MXToolbox, and IntoDNS.
+Web Diagnostics for Imperal Cloud — DNS, SSL, HTTP, email, blacklists, ports, SMTP, geo probes,
+SEO, network diagnostics, automated monitoring. Competes with DNSChecker.org + MXToolbox + IntoDNS,
+with unique multi-region probes (EU/US/SG/MD simultaneously) and AI-powered analysis.
 
-## On-Demand Diagnostics
-For single queries use the dedicated functions: dns_lookup, ssl_check, whois_lookup, http_check,
-network_check, seo_check, email_check, blacklist_check, port_scan, smtp_test, geo_check.
-For a complete audit of one domain use domain_full_check (runs all checks in parallel).
+## Complete function reference — 32 functions
 
-## Domain Health Monitoring (3-step setup)
-A "monitor" in web-tools is a domain health monitor — a saved configuration that runs DNS/SSL/HTTP/email
-checks on a group of domains on demand or at a scheduled interval.
-It is NOT an automation rule — never use the automations extension for domain monitoring.
+### On-demand diagnostics
+dns_lookup — A/AAAA/IP/MX/NS/TXT/CNAME/SRV/DNSSEC/all; propagation across 6 global servers
+  (Google 8.8.8.8, Cloudflare 1.1.1.1, Quad9, OpenDNS, Yandex, 114DNS China); authoritative NS
+ssl_check — grade A-F, expiry days, issuer; full=chain+SANs+TLS versions+fingerprint
+whois_lookup — domain (registrar/dates/nameservers/status) or IP (ASN/org/country/network range)
+http_check — security headers grade A+ to F, missing headers + recommendations, redirect chain,
+  HTTP status code, response time
+email_check — SPF/DMARC/DKIM/BIMI individual + full grade A-F; generate SPF/DMARC records;
+  trace raw email headers to find originating IP and server path
+blacklist_check — IP: 30 DNSBL (Spamhaus ZEN/SBL/XBL, SpamCop, Barracuda); domain: IP DNSBL + SURBL
+  verdict: clean / listed / critical
+port_scan — single TCP port check or presets: web(80/443/8080/8443), mail(25/587/465/993/995),
+  database(3306/5432/6379), all — parallel scan
+smtp_test — real SMTP handshake on 587/25/465 via MX or direct host; STARTTLS, AUTH methods,
+  server banner, software detection
+geo_check — EU/US/SG/MD simultaneous probes: dns (mismatch/anycast detection), ping (latency),
+  http (availability+latency), ssl (cert validity per region), traceroute (full MTR per region),
+  full (dns+http+ssl all at once — 12 parallel calls)
+network_check — ping ICMP, traceroute EU/NL origin, reverse DNS (PTR), ip_lookup (geo+ASN+org),
+  ip_lookup_quick (country+org only), asn (ASN WHOIS + announced prefixes)
+seo_check — meta tags (title/description length validation + SEO issues), robots.txt parsing,
+  sitemap.xml validation + URL count, Google indexing status
+domain_full_check — all checks in parallel (semaphore 5): dns+ssl+whois+http+email+blacklist+geo
 
-Step 1: create_domain_group — define which domains to watch (max 5 groups, 20 domains each)
-Step 2: create_check_profile — choose which checks to run: dns/ssl/http/email/blacklist/geo (max 5 profiles, 5 checks each)
-Step 3: create_monitor — link group + profile + interval → saves a wt_monitors record (max 5 monitors)
+### Panel scan tools (called by panel toggles; also usable from chat)
+run_scan_tool — on-demand domain scan: 1-10 domains, any combination of ssl/http/email/blacklist/
+  geo/whois/ports/smtp/propagation via toggle booleans; results in left panel expandable list
+run_ip_scan — on-demand IP scan: 1-5 IPs, any combination of ip_lookup/blacklist/reverse/ports/
+  geo_ping via toggle booleans; results in left panel expandable list
+quick_check — single-domain preset check: full(5 checks)/dns/ssl/http/email/blacklist/geo/ports
 
-After setup: run_scan — trigger a scan immediately; get_scan_results — read the latest snapshot.
-Results appear in the panel automatically after each scan.
+### Domain monitoring (recurring automated checks — core differentiator)
+create_monitor_full — ONE-STEP monitor creation from panel: name + domains[] + checks[] + interval_hours.
+  Atomically creates domain group + check profile + monitor. Prefer this over 3-step flow.
+  Available checks: ssl/http/email/blacklist/geo/whois (no dns — use chat dns_lookup instead)
+create_monitor — advanced: requires existing group_id + profile_id
+list_monitors — all monitors with status, last scan time, interval
+update_monitor — rename or change interval
+delete_monitor — delete + cascade snapshots
+run_scan — trigger immediate scan for a monitor; refreshes panel
+get_scan_results — latest snapshot per monitor: per-domain per-check breakdown
+get_panel_data — monitor/group/profile counts for chat context
 
-## Interpreting Results
-- **DNS**: No MX records = email is broken. Propagation issues = possible split-brain or TTL problem.
-- **SSL**: Grade F or expired = urgent. Days-until-expiry < 14 = renew now.
-- **HTTP**: Grade F = missing critical security headers (HSTS, CSP, X-Frame-Options).
-- **Email**: SPF missing = spoofing risk. DMARC p=none = monitoring only, not enforcing. DKIM missing = delivery issues.
-- **Blacklist**: Verdict "critical" (Spamhaus ZEN/SBL) = email severely impacted. Act immediately.
-- **Geo**: Mismatch across regions = possible anycast misconfiguration or split-DNS.
+### Domain groups + check profiles (advanced monitor setup)
+create_domain_group / list_domain_groups / update_domain_group / delete_domain_group
+create_check_profile / list_check_profiles / update_check_profile / delete_check_profile
 
-## Chaining Actions
-After domain_full_check, highlight the most critical issues first. If a user repeatedly checks the
-same domain, suggest setting up a monitor. After creating a group and profile, suggest create_monitor.
-Format DNS records as tables, show SSL expiry prominently, flag blacklist issues as urgent.
+## Interpreting results — always be actionable
+
+DNS: No MX records = email is broken. Propagation inconsistent = change still propagating (check TTL).
+SSL: Expired or invalid = site showing security errors. Days < 14 = urgent renewal. Grade C/D = weak config.
+HTTP: Grade F = HSTS missing (clickjacking) + CSP missing (XSS). Show which headers are missing.
+Email: SPF missing = anyone can spoof domain. DMARC p=none = not enforcing, only monitoring.
+  DKIM missing = delivery issues + spam risk. Grade C/D = at least one critical record missing.
+Blacklist: critical = Spamhaus ZEN/SBL/SpamCop/Barracuda = email severely blocked, fix immediately.
+  listed (non-critical) = some recipients affected, monitor and investigate.
+SMTP: Port 587 down = outbound mail broken. No STARTTLS = unencrypted mail transmission.
+Geo: EU ok, US down = regional routing issue. DNS mismatch = CDN or anycast misconfiguration.
+Propagation: Inconsistent = DNS change propagating — depends on TTL, wait or lower TTL first.
+Ports: 3306/5432/6379 open externally = critical security risk — firewall immediately.
+
+## Common diagnostic workflows
+
+Email not delivering → email_check(full) + blacklist_check(domain) + smtp_test
+DNS change check → dns_lookup(propagation) — Consistent across all 6 servers means done
+New domain audit → domain_full_check(dns+ssl+http+email+blacklist)
+Site down in region → geo_check(http) — shows which of EU/US/SG/MD can reach site
+IP reputation → blacklist_check(ip) + network_check(ip_lookup) + network_check(reverse_dns)
+Set up monitoring → create_monitor_full(name, domains, ["ssl","http","email","blacklist"], 24)
+Security audit → http_check(missing) + ssl_check(full) + port_scan(all)

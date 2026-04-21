@@ -31,8 +31,11 @@ def _check_status(check: str, data: dict) -> str:
         grade = data.get("grade", "A")
         return "critical" if grade == "F" else ("warning" if grade in ("C", "D") else "ok")
     if check == "geo":
+        # Geo data is {dns: {regions: {...}}, http: {regions: {...}}, ssl: {regions: {...}}}
+        # Use http regions as the availability signal (most representative)
         regions = data.get("http", {}).get("regions", {})
         if not regions:
+            # Fallback: try dns regions
             regions = data.get("dns", {}).get("regions", {})
         total = len(regions)
         if total > 0:
@@ -41,11 +44,6 @@ def _check_status(check: str, data: dict) -> str:
             if ok / total < 0.6:
                 return "warning"
         return "ok"
-    if check == "smtp":
-        ports = data.get("ports", [])
-        return "ok" if any(p.get("connected") for p in ports) else "warning"
-    if check == "propagation":
-        return "ok" if data.get("consistent", True) else "warning"
     return "ok"
 
 
@@ -60,10 +58,8 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
         "http":      f"{base}/v1/http/headers/{domain}/grade",
         "email":     f"{base}/v1/email/full/{domain}",
         "blacklist": f"{base}/v1/blacklist/domain/{domain}",
-        "geo":         f"{base}/v1/geo/full/{domain}",
-        "ports":       f"{base}/v1/ports/scan/{domain}",
-        "smtp":        f"{base}/v1/smtp/test/{domain}",
-        "propagation": f"{base}/v1/dns/propagation/{domain}",
+        "geo":       f"{base}/v1/geo/full/{domain}",
+        "ports":     f"{base}/v1/ports/scan/{domain}",
     }
 
     async def _one(check: str) -> tuple[str, dict]:
