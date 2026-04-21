@@ -197,38 +197,68 @@ def _check_subtitle(checks: dict) -> str:
     return " · ".join(parts)
 
 
-def domain_items(domains_data: dict) -> list:
-    """Expandable ListItem per domain — status badge on row, per-check detail on expand."""
-    items = []
-    for domain, checks in sorted(domains_data.items()):
-        statuses = [c.get("status", "unknown") for c in checks.values()]
-        has_unknown = "unknown" in statuses
-        overall  = (
-            "critical" if "critical" in statuses else
-            "warning"  if "warning"  in statuses else
-            "ok"       if "ok" in statuses and not has_unknown else
-            "unknown"
-        )
-        # "ok" only when ALL checks ran cleanly — if any check failed to run
-        # (unknown/unavailable), badge shows "—" so user knows it's incomplete
-        kv = [
-            {"key":   chk.upper(),
-             "value": _fmt_check_value(chk, res.get("data") or {})}
-            for chk, res in checks.items()
-        ]
-        expanded = (
-            [ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text")] if kv
-            else [ui.Text(content="No check data available", variant="caption")]
-        )
-        items.append(ui.ListItem(
-            id=domain,
-            title=domain,
-            subtitle=_check_subtitle(checks),
-            badge=status_badge(overall),
-            expandable=True,
-            expanded_content=expanded,
-        ))
-    return items
+
+
+def _domain_explain_msg(d: str, c: dict) -> str:
+    issues = ", ".join(f"{k.upper()}={v['status']}" for k, v in c.items()
+                       if v.get("status") in ("warning", "critical"))
+    return (f"Explain {d}: {issues}. What is wrong and how to fix it?"
+            if issues else f"Scan for {d} OK. Any concerns to watch?")
+
+
+def _fmt_check_expanded(chk: str, data: dict) -> str:
+    """Verbose single-line per check for expanded scan results view."""
+    if not data or data.get("error"):
+        return "Unavailable"
+    if chk == "ssl":
+        days  = data.get("days_until_expiry") or data.get("days_remaining")
+        grade = data.get("grade", "?")
+        issuer = (data.get("issuer") or "")[:25]
+        return " · ".join(p for p in
+            [f"Grade {grade}", f"{days}d left" if days is not None else None, issuer] if p)
+    if chk == "http":
+        grade   = data.get("grade", "?")
+        score   = data.get("score")
+        missing = [h.get("name", "") for h in data.get("headers", [])
+                   if h.get("status") in ("missing", "invalid")][:3]
+        parts   = [f"Grade {grade}"]
+        if score:   parts.append(f"{score}/100")
+        if missing: parts.append("Missing: " + ", ".join(missing))
+        return " · ".join(parts)
+    if chk == "email":
+        grade  = data.get("grade", "?")
+        spf_ok = "✓" if (data.get("spf") or {}).get("valid") else "✗"
+        dm     = data.get("dmarc") or {}
+        dm_ok  = "✓" if dm.get("valid") else "✗"
+        dp     = dm.get("policy", "")
+        dk_ok  = "✓" if (data.get("dkim") or {}).get("valid") else "✗"
+        return (f"Grade {grade} · SPF{spf_ok} · "
+                f"DMARC{dm_ok}{f' p={dp}' if dp and dp != 'reject' else ''} · DKIM{dk_ok}")
+    if chk == "geo":
+        regions = (data.get("http", {}).get("regions") or
+                   data.get("dns", {}).get("regions") or {})
+        parts = []
+        for name, r in regions.items():
+            if not isinstance(r, dict): continue
+            ok = r.get("ok", False)
+            ms = r.get("latency_ms") or r.get("probe_ms")
+            parts.append(f"{name} {'✓' if ok else '✗'}"
+                         + (f" {int(ms)}ms" if ms and ok else ""))
+        return " · ".join(parts) or "—"
+    if chk == "propagation":
+        srvs = data.get("servers", [])
+        parts = [(s.get("location") or "")[:10] + ("✓" if s.get("status") == "success" else "✗")
+                 for s in srvs]
+        return " · ".join(parts[:6]) or "—"
+    if chk == "smtp":
+        if not data.get("reachable"): return "Not reachable"
+        port = data.get("best_port", "")
+        tls  = "✓" if data.get("starttls_available") else "✗"
+        sw   = (data.get("server_software") or "")[:15]
+        mx   = (data.get("mx_host") or "")[:20]
+        return (f"Port {port} · STARTTLS{tls}"
+                + (f" · {sw}" if sw else "") + (f" · {mx}" if mx else ""))
+    return _fmt_check_value(chk, data)
 
 
 def scan_tool_items(results: dict) -> list:
@@ -243,7 +273,8 @@ def scan_tool_items(results: dict) -> list:
             "ok"       if "ok" in statuses and not has_unk else
             "unknown"
         )
-        kv = [{"key": chk.upper(), "value": _fmt_check_value(chk, res.get("data") or {})}
+        kv = [{"key": chk.upper(),
+               "value": _fmt_check_expanded(chk, res.get("data") or {})}
               for chk, res in checks.items()]
         items.append(ui.ListItem(
             id=domain, title=domain,
@@ -251,8 +282,13 @@ def scan_tool_items(results: dict) -> list:
             badge=status_badge(overall),
             expandable=True,
             expanded_content=[
-                ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text"),
+                ui.Stack([ui.KeyValue(items=kv, columns=1)], className="select-text"),
             ] if kv else [],
+            actions=[{
+                "icon":     "MessageCircle",
+                "label":    "Explain in chat",
+                "on_click": ui.Send(_domain_explain_msg(domain, checks)),
+            }],
         ))
     return items
 

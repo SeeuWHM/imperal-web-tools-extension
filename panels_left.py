@@ -10,24 +10,24 @@ _DOMAIN_RE = r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$"
 # ─── Toggle definitions ───────────────────────────────────────────────────── #
 
 _DOMAIN_TOGGLES = [
-    # (param_name, label, tooltip, default)
-    ("ssl",         "SSL",         "SSL certificate — grade A-F, expiry days, issuer",                   True),
-    ("http",        "HTTP",        "HTTP security headers — HSTS, CSP, X-Frame-Options, grade A-F",      True),
-    ("email",       "Email",       "Email deliverability — SPF, DMARC, DKIM, BIMI, grade A-F",           True),
-    ("blacklist",   "Blacklist",   "Domain/IP blacklist — 30 DNSBL: Spamhaus, SpamCop, Barracuda, SURBL", True),
-    ("geo",         "Geo",         "Multi-region probe EU/US/SG/MD — availability and ping latency",     False),
-    ("whois",       "WHOIS",       "Domain registrar, expiry date, nameservers, registrant status",      False),
-    ("smtp",        "SMTP",        "Mail server — ports 587/25/465, STARTTLS, AUTH methods, banner",     False),
-    ("propagation", "Propagation", "DNS propagation across 6 servers: Google, Cloudflare, Yandex, 114DNS China", False),
-    ("ports",       "Ports",       "TCP port scan — web/mail/database presets or single port",           False),
+    # (param_name, label, short_description, default)
+    ("ssl",         "SSL",         "grade A-F · expiry days",           True),
+    ("http",        "HTTP",        "security headers grade A-F",        True),
+    ("email",       "Email",       "SPF · DMARC · DKIM",                True),
+    ("blacklist",   "Blacklist",   "30 DNSBL (Spamhaus, SpamCop)",      True),
+    ("geo",         "Geo",         "HTTP from EU / US / SG / MD",       False),
+    ("whois",       "WHOIS",       "registrar · expiry date",           False),
+    ("smtp",        "SMTP",        "mail ports · STARTTLS",             False),
+    ("propagation", "Propagation", "6 global DNS servers",              False),
+    ("ports",       "Ports",       "web · mail · database TCP",         False),
 ]
 
 _IP_TOGGLES = [
-    ("ip_lookup", "Info",      "IP geolocation, ASN, organization, network CIDR range",      True),
-    ("blacklist", "Blacklist", "IP vs 30 DNSBL databases — Spamhaus, SpamCop, Barracuda",    True),
-    ("reverse",   "PTR",       "Reverse DNS — hostname (PTR record) for this IP address",    True),
-    ("geo_ping",  "Geo Ping",  "ICMP ping from EU/US/SG/MD — reachability and RTT per region", True),
-    ("ports",     "Ports",     "TCP port scan — web/mail/database presets",                  False),
+    ("ip_lookup", "Info",      "geo · ASN · org",           True),
+    ("blacklist", "Blacklist", "30 DNSBL databases",        True),
+    ("reverse",   "PTR",       "hostname (PTR record)",     True),
+    ("geo_ping",  "Geo Ping",  "ICMP from EU/US/SG/MD",    True),
+    ("ports",     "Ports",     "TCP port scan",             False),
 ]
 
 
@@ -55,14 +55,13 @@ def _tabs(active: str) -> ui.UINode:
 
 
 def _toggle_stack(toggles: list) -> ui.UINode:
-    """Vertical stack of Toggles — HelpCircle icon beside each carries the tooltip."""
+    """Vertical stack of Toggles with inline description text."""
     return ui.Stack([
         ui.Stack([
             ui.Toggle(label=lbl, param_name=key, value=default),
-            ui.Tooltip(content=tip,
-                       children=ui.Icon(name="HelpCircle", size=13)),
+            ui.Text(content=desc, variant="caption"),
         ], direction="h", gap=2, align="center")
-        for key, lbl, tip, default in toggles
+        for key, lbl, desc, default in toggles
     ], direction="v", gap=2)
 
 
@@ -101,17 +100,8 @@ async def _domain_view(ctx) -> ui.UINode:
             results_section = [
                 ui.Divider(label=ts),
                 *alert,
-                ui.Stack([
-                    ui.Text(content=f"{len(rdata)} domain(s) · {crit} critical · {warn} warning",
-                            variant="caption"),
-                    ui.Tooltip(
-                        content="Ask AI to explain these results",
-                        children=ui.Button(
-                            "Explain", icon="MessageCircle", variant="ghost", size="sm",
-                            on_click=ui.Send(_ai_msg("domain", rdata, ts)),
-                        ),
-                    ),
-                ], direction="h", justify="between"),
+                ui.Text(content=f"{len(rdata)} domain(s) · {crit} critical · {warn} warning",
+                        variant="caption"),
                 ui.List(items=scan_tool_items(rdata)),
             ]
     return ui.Stack([_tabs("domain"), form, *results_section])
@@ -150,17 +140,8 @@ async def _ip_view(ctx) -> ui.UINode:
             results_section = [
                 ui.Divider(label=ts),
                 *alert,
-                ui.Stack([
-                    ui.Text(content=f"{len(rdata)} IP(s) · {crit} critical · {warn} warning",
-                            variant="caption"),
-                    ui.Tooltip(
-                        content="Ask AI to explain these results",
-                        children=ui.Button(
-                            "Explain", icon="MessageCircle", variant="ghost", size="sm",
-                            on_click=ui.Send(_ai_msg("IP", rdata, ts)),
-                        ),
-                    ),
-                ], direction="h", justify="between"),
+                ui.Text(content=f"{len(rdata)} IP(s) · {crit} critical · {warn} warning",
+                        variant="caption"),
                 ui.List(items=_ip_scan_items(rdata)),
             ]
     return ui.Stack([_tabs("ip"), form, *results_section])

@@ -5,7 +5,32 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import status_badge, domain_items, INTERVAL_OPTS, fmt_interval
+from panels_ui import (status_badge, _fmt_check_value, _check_subtitle,
+                       INTERVAL_OPTS, fmt_interval)
+
+
+def domain_items(domains_data: dict) -> list:
+    """Expandable ListItem per domain — used in monitor detail view."""
+    items = []
+    for domain, checks in sorted(domains_data.items()):
+        statuses    = [c.get("status", "unknown") for c in checks.values()]
+        has_unknown = "unknown" in statuses
+        overall     = (
+            "critical" if "critical" in statuses else
+            "warning"  if "warning"  in statuses else
+            "ok"       if "ok" in statuses and not has_unknown else "unknown"
+        )
+        kv = [{"key": chk.upper(), "value": _fmt_check_value(chk, res.get("data") or {})}
+              for chk, res in checks.items()]
+        expanded = ([ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text")]
+                    if kv else [ui.Text(content="No data", variant="caption")])
+        items.append(ui.ListItem(
+            id=domain, title=domain,
+            subtitle=_check_subtitle(checks),
+            badge=status_badge(overall),
+            expandable=True, expanded_content=expanded,
+        ))
+    return items
 
 
 # ─── Detail builder ───────────────────────────────────────────────────────── #
