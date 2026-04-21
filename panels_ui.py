@@ -109,11 +109,12 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         return f"{ok}/{total} regions reachable" if total else "OK"
 
     if chk == "whois":
-        registrar = data.get("registrar", "")
-        exp = (data.get("expiry_date") or "")[:10]
+        registrar = data.get("registrar") or ""
+        exp = (data.get("expires") or data.get("expiry_date") or "")[:10]
+        days = data.get("days_until_expiry")
         if registrar:
-            return f"{registrar}" + (f" · exp {exp}" if exp else "")
-        return f"Exp {exp}" if exp else "—"
+            return f"{registrar}" + (f" · {days}d" if days else (f" · {exp}" if exp else ""))
+        return (f"Exp {exp} · {days}d" if exp and days else f"Exp {exp}" if exp else "—")
 
     if chk == "smtp":
         if not data.get("reachable"):
@@ -135,7 +136,7 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
                 else f"Inconsistent! · {ok_count}/{total} agree")
 
     if chk == "ports":
-        open_p = [str(p.get("port", "")) for p in data.get("ports", []) if p.get("status") == "open"]
+        open_p = [str(p.get("port", "")) for p in data.get("results", []) if p.get("status") == "open"]
         return f"Open: {', '.join(open_p[:5])}" if open_p else "All closed"
 
     return "OK"
@@ -253,7 +254,7 @@ def _fmt_check_expanded(chk: str, data: dict) -> str:
         return (f"Port {port} · TLS {tls}"
                 + (f" · {sw}" if sw else "") + (f" · MX: {mx}" if mx else ""))
     if chk == "ports":
-        ports_list = data.get("ports", [])
+        ports_list = data.get("results", [])
         if not ports_list:
             return "—"
         parts = []

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from imperal_sdk import ui
 
-from panels_ui import scan_tool_items, status_badge
+from panels_ui import scan_tool_items, status_badge, _REGION_DISPLAY
 
 _DOMAIN_RE = r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$"
 
@@ -168,7 +168,7 @@ def _fmt_ip_val(chk: str, data: dict) -> str:
         hn = data.get("hostname") or data.get("ptr")
         return f"PTR: {hn}" if hn else "No PTR"
     if chk == "ports":
-        open_p = [str(p["port"]) for p in (data.get("ports") or [])
+        open_p = [str(p["port"]) for p in (data.get("results") or [])
                   if p.get("status") == "open"]
         return f"Open: {', '.join(open_p[:4])}" if open_p else "All closed"
     if chk == "geo_ping":
@@ -216,7 +216,7 @@ def _ip_expanded_kv(checks: dict) -> list:
             kv.append({"key": "PTR", "value": hn or "No PTR record"})
         elif chk == "ports":
             open_p = [(str(p["port"]), p.get("service", ""))
-                      for p in (data.get("ports") or []) if p.get("status") == "open"]
+                      for p in (data.get("results") or []) if p.get("status") == "open"]
             if open_p:
                 port_str = ", ".join(
                     f"{p}" + (f" ({s})" if s else "") for p, s in open_p[:6])
@@ -229,10 +229,11 @@ def _ip_expanded_kv(checks: dict) -> list:
             for name, r in regions.items():
                 if not isinstance(r, dict):
                     continue
+                disp   = _REGION_DISPLAY.get(name, name)
                 sym    = "✓" if r.get("reachable") else "✗"
                 avg_ms = r.get("avg_ms")
                 ms_str = f" {avg_ms:.0f}ms" if avg_ms is not None else ""
-                lines.append(f"{name} {sym}{ms_str}")
+                lines.append(f"{disp} {sym}{ms_str}")
             kv.append({"key": "Geo Ping", "value": " · ".join(lines)})
     return kv
 
