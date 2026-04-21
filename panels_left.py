@@ -242,6 +242,8 @@ def _ip_scan_items(results: dict) -> list:
             subtitle=subtitle or "—",
             badge=status_badge(overall),
             expandable=bool(kv),
-            expanded_content=[ui.KeyValue(items=kv, columns=2)] if kv else [],
+            expanded_content=[
+                ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text"),
+            ] if kv else [],
         ))
     return items

@@ -216,7 +216,7 @@ def domain_items(domains_data: dict) -> list:
             for chk, res in checks.items()
         ]
         expanded = (
-            [ui.KeyValue(items=kv, columns=2)] if kv
+            [ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text")] if kv
             else [ui.Text(content="No check data available", variant="caption")]
         )
         items.append(ui.ListItem(
@@ -249,7 +249,9 @@ def scan_tool_items(results: dict) -> list:
             subtitle=_check_subtitle(checks),
             badge=status_badge(overall),
             expandable=True,
-            expanded_content=[ui.KeyValue(items=kv, columns=2)] if kv else [],
+            expanded_content=[
+                ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text"),
+            ] if kv else [],
         ))
     return items
 
