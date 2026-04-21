@@ -152,15 +152,16 @@ _VALID_CHECKS = {"ssl", "http", "email", "blacklist", "geo", "whois", "ports"}
 
 class CreateMonitorFullParams(BaseModel):
     name:           str       = Field(description="Monitor name")
-    domains:        list[str] = Field(description="Domains to monitor (max 20)")
+    domains:        list[str] = Field(default_factory=list, description="Domains to monitor (max 20)")
     interval_hours: int       = Field(default=24, description="Scan interval in hours")
     # Chat callers pass checks as list; panel form passes individual boolean toggles
+    # Defaults match panel form visual defaults (sdk may omit unchanged toggle values)
     checks:    list[str] = Field(default_factory=list,
                                   description="Check types (chat API)")
-    ssl:       bool = Field(default=False)
-    http:      bool = Field(default=False)
-    email:     bool = Field(default=False)
-    blacklist: bool = Field(default=False)
+    ssl:       bool = Field(default=True)
+    http:      bool = Field(default=True)
+    email:     bool = Field(default=True)
+    blacklist: bool = Field(default=True)
     geo:       bool = Field(default=False)
     whois:     bool = Field(default=False)
 

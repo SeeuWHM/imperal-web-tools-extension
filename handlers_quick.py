@@ -93,10 +93,11 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
 
 class ScanToolParams(BaseModel):
     domains:     list[str] = Field(default_factory=list, description="Domains or IPs to scan (max 10)")
-    ssl:         bool = Field(default=False)
-    http:        bool = Field(default=False)
-    email:       bool = Field(default=False)
-    blacklist:   bool = Field(default=False)
+    # Defaults match _DOMAIN_TOGGLES visual defaults — SDK may omit unchanged form values
+    ssl:         bool = Field(default=True)
+    http:        bool = Field(default=True)
+    email:       bool = Field(default=True)
+    blacklist:   bool = Field(default=True)
     geo:         bool = Field(default=False)
     whois:       bool = Field(default=False)
     ports:       bool = Field(default=False)
@@ -152,11 +153,12 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
 
 class IpScanParams(BaseModel):
     domains:   list[str] = Field(default_factory=list, description="IP addresses to scan (max 5)")
-    ip_lookup: bool = Field(default=False)
-    blacklist: bool = Field(default=False)
-    reverse:   bool = Field(default=False)
+    # Defaults match _IP_TOGGLES visual defaults — SDK may omit unchanged form values
+    ip_lookup: bool = Field(default=True)
+    blacklist: bool = Field(default=True)
+    reverse:   bool = Field(default=True)
     ports:     bool = Field(default=False)
-    geo_ping:  bool = Field(default=False)
+    geo_ping:  bool = Field(default=True)
 
 
 def _ip_status(check: str, data: dict) -> str:
