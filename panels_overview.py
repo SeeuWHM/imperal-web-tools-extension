@@ -31,8 +31,8 @@ async def _build_monitors_view(ctx) -> ui.UINode:
         ui.Text(content="Domain Health", variant="subheading"),
         ui.Tooltip(
             content="Create a new domain health monitor",
-            children=ui.Button("+ New Monitor", icon="Plus", variant="primary",
-                               size="sm",
+            children=ui.Button("New Monitor", icon="Plus", variant="primary",
+                               size="md",
                                on_click=ui.Call("__panel__overview", view="new")),
         ),
     ], direction="h", justify="between", sticky=True, wrap=False)
@@ -108,9 +108,11 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 async def _build_new_view(ctx) -> ui.UINode:
     count  = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
     header = ui.Stack([
-        ui.Button("← Back", icon="ArrowLeft", variant="ghost", size="sm",
-                  on_click=ui.Call("__panel__overview", view="monitors")),
-        ui.Text(content="New Monitor", variant="subheading"),
+        ui.Tooltip(
+            content="Back to monitors",
+            children=ui.Button("", icon="ArrowLeft", variant="ghost", size="md",
+                               on_click=ui.Call("__panel__overview", view="monitors")),
+        ),
     ], direction="h", gap=2, sticky=True, wrap=False)
 
     if count >= MAX_MONITORS:
