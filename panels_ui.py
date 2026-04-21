@@ -289,11 +289,7 @@ def scan_tool_items(results: dict) -> list:
             expanded_content=[
                 ui.Stack([ui.KeyValue(items=kv, columns=1)], className="select-text"),
             ] if kv else [],
-            actions=[{
-                "icon":     "MessageCircle",
-                "label":    "Explain in chat",
-                "on_click": ui.Send(_domain_explain_msg(domain, checks)),
-            }],
+            actions=[],
         ))
     return items
 
