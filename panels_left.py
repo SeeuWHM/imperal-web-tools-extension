@@ -147,24 +147,11 @@ async def _ip_view(ctx) -> ui.UINode:
     return ui.Stack([_tabs("ip"), form, *results_section])
 
 
-# ─── AI summary message builders ─────────────────────────────────────────── #
-
-def _ai_msg(kind: str, results: dict, ts: str) -> str:
-    issues = [f"{t} — {chk}: {res['status']}"
-              for t, checks in results.items()
-              for chk, res in checks.items()
-              if res.get("status") in ("warning", "critical")]
-    if issues:
-        return (f"Analyze my {kind} scan from {ts}. Issues:\n" +
-                "\n".join(issues[:12]) + "\n\nWhat does each mean and how do I fix it?")
-    return f"Review my {kind} scan from {ts} — all looks OK. Any concerns?"
-
-
 # ─── IP Scan helpers (local — only used here) ─────────────────────────────── #
 
 def _fmt_ip_val(chk: str, data: dict) -> str:
     if not data:
-        return ""
+        return "—"
     if chk == "ip_lookup":
         country = data.get("country_name") or data.get("country") or ""
         org     = (data.get("org") or "")[:22]
@@ -197,9 +184,8 @@ def _ip_expanded_kv(checks: dict) -> list:
     for chk, res in checks.items():
         data = res.get("data") or {}
         if not data:
-            err = res.get("error", "")
-            if err:
-                kv.append({"key": chk.upper(), "value": f"Error: {str(err)[:50]}"})
+            err = res.get("error") or "No data returned"
+            kv.append({"key": chk.upper(), "value": err[:60]})
             continue
         if chk == "ip_lookup":
             country = data.get("country_name") or data.get("country") or "—"

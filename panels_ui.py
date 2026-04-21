@@ -3,16 +3,10 @@ from __future__ import annotations
 
 from imperal_sdk import ui
 
-# ─── Select options ───────────────────────────────────────────────────────── #
+# Region display names: raw API key → short label shown in UI
+_REGION_DISPLAY = {"EU": "WEU", "MD": "EEU", "SG": "AS", "US": "US"}
 
-CHECKS_OPTS = [
-    {"value": "ssl",       "label": "SSL"},
-    {"value": "http",      "label": "HTTP Headers"},
-    {"value": "email",     "label": "Email Deliverability"},
-    {"value": "blacklist", "label": "Blacklist"},
-    {"value": "geo",       "label": "Geo Probe"},
-    {"value": "whois",     "label": "WHOIS"},
-]
+# ─── Select options ───────────────────────────────────────────────────────── #
 
 INTERVAL_OPTS = [
     {"value": "1",   "label": "Every hour"},
@@ -29,7 +23,7 @@ PROFILE_CHECK_OPTS = [
     {"value": "http",      "label": "HTTP Headers — security grade A-F"},
     {"value": "email",     "label": "Email Delivery — SPF · DMARC · DKIM"},
     {"value": "blacklist", "label": "Blacklist — 30 DNSBL lists"},
-    {"value": "geo",       "label": "Geo Probe — EU · US · SG · MD"},
+    {"value": "geo",       "label": "Geo Probe — WEU · US · AS · EEU"},
     {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
 ]
 PROFILE_CHECK_DEFAULTS = ["ssl", "http", "email", "blacklist"]
@@ -101,16 +95,9 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         return (f"{prefix}: {', '.join(names)}{more}" if names else f"{prefix} on {total} DNSBL(s)")
 
     if chk == "geo":
-        # Geo data is {dns: {regions: {...}}, http: {regions: {...}}, ssl: {...}}
-        # Use http regions as availability signal; fall back to dns regions
         regions = (data.get("http", {}).get("regions") or
                    data.get("dns", {}).get("regions") or {})
         if not regions and isinstance(data, dict):
-            # Quick-check single-probe: data IS the flat regions dict
-            flat_ok = all(
-                v.get("available", True) for v in data.values()
-                if isinstance(v, dict) and "region" in v
-            )
             region_items = [v for v in data.values()
                             if isinstance(v, dict) and "region" in v]
             if region_items:
@@ -126,7 +113,7 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
         exp = (data.get("expiry_date") or "")[:10]
         if registrar:
             return f"{registrar}" + (f" · exp {exp}" if exp else "")
-        return "Found"
+        return f"Exp {exp}" if exp else "—"
 
     if chk == "smtp":
         if not data.get("reachable"):
@@ -146,6 +133,10 @@ def _fmt_check_value(chk: str, data: dict | None) -> str:
             return "—"
         return (f"Consistent · {ok_count}/{total} servers" if propagated
                 else f"Inconsistent! · {ok_count}/{total} agree")
+
+    if chk == "ports":
+        open_p = [str(p.get("port", "")) for p in data.get("ports", []) if p.get("status") == "open"]
+        return f"Open: {', '.join(open_p[:5])}" if open_p else "All closed"
 
     return "OK"
 
@@ -197,8 +188,6 @@ def _check_subtitle(checks: dict) -> str:
     return " · ".join(parts)
 
 
-
-
 def _domain_explain_msg(d: str, c: dict) -> str:
     issues = ", ".join(f"{k.upper()}={v['status']}" for k, v in c.items()
                        if v.get("status") in ("warning", "critical"))
@@ -240,15 +229,20 @@ def _fmt_check_expanded(chk: str, data: dict) -> str:
         parts = []
         for name, r in regions.items():
             if not isinstance(r, dict): continue
+            disp = _REGION_DISPLAY.get(name, name)
             ok = r.get("ok", False)
             ms = r.get("latency_ms") or r.get("probe_ms")
-            parts.append(f"{name} {'✓' if ok else '✗'}"
+            parts.append(f"{disp} {'✓' if ok else '✗'}"
                          + (f" {int(ms)}ms" if ms and ok else ""))
         return " · ".join(parts) or "—"
     if chk == "propagation":
         srvs = data.get("servers", [])
-        parts = [(s.get("location") or "")[:10] + ("✓" if s.get("status") == "success" else "✗")
-                 for s in srvs]
+        parts = []
+        for s in srvs:
+            raw  = s.get("name") or s.get("location") or "?"
+            name = raw.split("(")[0].strip()
+            ok   = s.get("status") == "success"
+            parts.append(f"{name} {'✓' if ok else '✗'}")
         return " · ".join(parts[:6]) or "—"
     if chk == "smtp":
         if not data.get("reachable"): return "Not reachable"
@@ -256,8 +250,18 @@ def _fmt_check_expanded(chk: str, data: dict) -> str:
         tls  = "✓" if data.get("starttls_available") else "✗"
         sw   = (data.get("server_software") or "")[:15]
         mx   = (data.get("mx_host") or "")[:20]
-        return (f"Port {port} · STARTTLS{tls}"
-                + (f" · {sw}" if sw else "") + (f" · {mx}" if mx else ""))
+        return (f"Port {port} · TLS {tls}"
+                + (f" · {sw}" if sw else "") + (f" · MX: {mx}" if mx else ""))
+    if chk == "ports":
+        ports_list = data.get("ports", [])
+        if not ports_list:
+            return "—"
+        parts = []
+        for p in ports_list:
+            sym = "✓" if p.get("status") == "open" else "✗"
+            svc = p.get("service", "")
+            parts.append(f"{p.get('port')} {sym}" + (f" {svc}" if svc else ""))
+        return " · ".join(parts[:8]) or "—"
     return _fmt_check_value(chk, data)
 
 

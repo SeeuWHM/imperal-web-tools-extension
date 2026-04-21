@@ -203,10 +203,13 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
         try:
             resp = await ctx.http.get(_urls[chk](ip))
             body = resp.json()
-            d    = body.get("data") if body.get("success") else None
-            return chk, {"status": _ip_status(chk, d or {}), "data": d}
+            if body.get("success"):
+                d = body.get("data")
+                return chk, {"status": _ip_status(chk, d or {}), "data": d}
+            err = body.get("error") or body.get("message") or "Check failed"
+            return chk, {"status": "unknown", "data": None, "error": err}
         except Exception as exc:
-            return chk, {"status": "unknown", "error": str(exc)}
+            return chk, {"status": "unknown", "data": None, "error": str(exc)}
 
     sem = asyncio.Semaphore(3)
 
