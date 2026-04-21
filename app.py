@@ -29,7 +29,7 @@ chat = ChatExtension(
         "WHOIS domain registrar dates nameservers IP ASN org network, HTTP security headers grade "
         "A+ to F HSTS CSP XFO missing headers redirects chain status response time, SEO meta tags "
         "title description robots.txt sitemap.xml Google indexing, email SPF DMARC DKIM BIMI grade "
-        "A-F generate records trace headers find originating IP, blacklist 30 DNSBL Spamhaus ZEN SBL "
+        "A-F generate records trace headers find originating IP, blacklist 29 DNSBL Spamhaus ZEN SBL "
         "XBL SpamCop Barracuda SURBL verdict clean listed critical, TCP ports web mail database all "
         "presets single port open closed filtered, SMTP test MX 587 25 465 STARTTLS AUTH banner, "
         "multi-region geo probe EU US SG MD ping latency HTTP availability DNS mismatch anycast SSL "

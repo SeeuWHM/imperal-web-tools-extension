@@ -13,7 +13,7 @@ http_check — security headers grade A+ to F, missing headers + recommendations
   HTTP status code, response time
 email_check — SPF/DMARC/DKIM/BIMI individual + full grade A-F; generate SPF/DMARC records;
   trace raw email headers to find originating IP and server path
-blacklist_check — IP: 30 DNSBL (Spamhaus ZEN/SBL/XBL, SpamCop, Barracuda); domain: IP DNSBL + SURBL
+blacklist_check — IP: 29 DNSBL (Spamhaus ZEN/SBL/XBL, SpamCop, Barracuda); domain: IP DNSBL + SURBL
   verdict: clean / listed / critical
 port_scan — single TCP port check or presets: web(80/443/8080/8443), mail(25/587/465/993/995),
   database(3306/5432/6379), all — parallel scan

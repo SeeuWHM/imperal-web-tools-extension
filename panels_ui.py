@@ -22,7 +22,7 @@ PROFILE_CHECK_OPTS = [
     {"value": "ssl",       "label": "SSL Certificate — grade A-F, expiry days"},
     {"value": "http",      "label": "HTTP Headers — security grade A-F"},
     {"value": "email",     "label": "Email Delivery — SPF · DMARC · DKIM"},
-    {"value": "blacklist", "label": "Blacklist — 30 DNSBL lists"},
+    {"value": "blacklist", "label": "Blacklist — 29 DNSBL lists"},
     {"value": "geo",       "label": "Geo Probe — WEU · US · AS · EEU"},
     {"value": "whois",     "label": "WHOIS — registrar, expiry date"},
 ]

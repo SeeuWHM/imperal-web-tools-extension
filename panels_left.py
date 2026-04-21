@@ -10,24 +10,24 @@ _DOMAIN_RE = r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$"
 # ─── Toggle definitions ───────────────────────────────────────────────────── #
 
 _DOMAIN_TOGGLES = [
-    # (param_name, label, short_description, default)
-    ("ssl",         "SSL",         "grade A-F · expiry days",           True),
-    ("http",        "HTTP",        "security headers grade A-F",        True),
-    ("email",       "Email",       "SPF · DMARC · DKIM",                True),
-    ("blacklist",   "Blacklist",   "30 DNSBL (Spamhaus, SpamCop)",      True),
-    ("geo",         "Geo",         "HTTP from EU / US / SG / MD",       False),
-    ("whois",       "WHOIS",       "registrar · expiry date",           False),
-    ("smtp",        "SMTP",        "mail ports · STARTTLS",             False),
-    ("propagation", "Propagation", "6 global DNS servers",              False),
-    ("ports",       "Ports",       "web · mail · database TCP",         False),
+    # (param_name, label, description shown under toggle, default)
+    ("ssl",         "SSL",         "certificate grade A-F · days until expiry · issuer",      True),
+    ("http",        "HTTP",        "security headers: HSTS · CSP · X-Frame-Options, grade A-F", True),
+    ("email",       "Email",       "SPF · DMARC · DKIM auth — deliverability grade A-F",      True),
+    ("blacklist",   "Blacklist",   "29 DNSBL — Spamhaus · SpamCop · Barracuda reputation",    True),
+    ("geo",         "Geo",         "HTTP reachability from WEU · US · AS · EEU regions",      False),
+    ("whois",       "WHOIS",       "registrar name · expiry date · days remaining",            False),
+    ("smtp",        "SMTP",        "mail server test — ports 587/25/465 · STARTTLS support",  False),
+    ("propagation", "Propagation", "DNS spread — 6 global resolvers (Google, CF, Quad9...)",  False),
+    ("ports",       "Ports",       "TCP scan: web 80/443 · mail 25/587 · DB 3306/5432/6379",  False),
 ]
 
 _IP_TOGGLES = [
-    ("ip_lookup", "Info",      "geo · ASN · org",           True),
-    ("blacklist", "Blacklist", "30 DNSBL databases",        True),
-    ("reverse",   "PTR",       "hostname (PTR record)",     True),
-    ("geo_ping",  "Geo Ping",  "ICMP from EU/US/SG/MD",    True),
-    ("ports",     "Ports",     "TCP port scan",             False),
+    ("ip_lookup", "Info",      "country · organization · ASN · network range",           True),
+    ("blacklist", "Blacklist", "29 DNSBL — Spamhaus · SpamCop · Barracuda reputation",   True),
+    ("reverse",   "PTR",       "reverse DNS — hostname assigned to this IP address",     True),
+    ("geo_ping",  "Geo Ping",  "ICMP ping latency from WEU · US · AS · EEU",            True),
+    ("ports",     "Ports",     "TCP scan: web 80/443 · mail 25/587 · DB 3306/5432/6379", False),
 ]
 
 
