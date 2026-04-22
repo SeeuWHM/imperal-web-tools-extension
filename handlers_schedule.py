@@ -1,8 +1,8 @@
 """web-tools · Scheduled monitor runner — hourly cron, runs overdue monitors.
 
-Architecture: @ext.schedule is global (no ctx.user). Queries ALL enabled monitors
-across all users, checks last_run_at + interval_hours, runs overdue ones.
-Pattern: one global hourly cron + per-record last_run_at check (canonical since SDK v1.5.4).
+Architecture: @ext.schedule runs under __system__ context. Uses ctx.store.list_users()
+to iterate all users that have monitors, then ctx.as_user(uid) to get a scoped Context
+for per-user store operations. Pattern: SDK 1.5.23+ canonical fan-out (Rule 20).
 """
 from __future__ import annotations
 
@@ -20,30 +20,38 @@ log = logging.getLogger(__name__)
 
 @ext.schedule("wt_monitor_runner", cron="0 * * * *")
 async def run_scheduled_monitors(ctx) -> None:
-    """Hourly: scan all enabled monitors whose interval has elapsed."""
+    """Hourly: fan-out across all users, scan overdue monitors."""
     now = datetime.datetime.utcnow()
+    run_count = 0
     try:
-        page = await ctx.store.query("wt_monitors", where={"enabled": True}, limit=100)
-        if not page.data:
-            return
-        run_count = 0
-        for mon in page.data:
+        async for user_id in ctx.store.list_users("wt_monitors"):
+            user_ctx = ctx.as_user(user_id)
             try:
-                ran = await _maybe_run(ctx, mon, now)
-                if ran:
-                    run_count += 1
+                page = await user_ctx.store.query("wt_monitors",
+                                                  where={"enabled": True}, limit=100)
+                for mon in page.data:
+                    try:
+                        ran = await _maybe_run(user_ctx, mon, now)
+                        if ran:
+                            run_count += 1
+                    except Exception as exc:
+                        log.warning(
+                            f"wt_schedule: monitor {mon.id} "
+                            f"({mon.data.get('name')}) failed: {exc}"
+                        )
             except Exception as exc:
-                log.warning(f"wt_schedule: monitor {mon.id} ({mon.data.get('name')}) failed: {exc}")
-        if run_count:
-            log.info(f"wt_schedule: ran {run_count} monitor(s)")
+                log.warning(f"wt_schedule: user {user_id} failed: {exc}")
     except Exception as exc:
         log.error(f"wt_schedule: runner failed: {exc}")
+
+    if run_count:
+        log.info(f"wt_schedule: ran {run_count} monitor(s)")
 
 
 # ─── Internal helpers ─────────────────────────────────────────────────────── #
 
 async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
-    """Run scan if monitor is overdue. Returns True if scan was executed."""
+    """Run scan if monitor is overdue. ctx is already scoped to the monitor owner."""
     last_run = mon.data.get("last_run_at")
     interval_h = mon.data.get("interval_hours", 24)
 
@@ -53,7 +61,7 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
         except ValueError:
             elapsed_h = interval_h + 1  # malformed date → run it
         if elapsed_h < interval_h:
-            return False  # not yet time
+            return False
 
     grp = await ctx.store.get("wt_groups",   mon.data["group_id"])
     prf = await ctx.store.get("wt_profiles", mon.data["profile_id"])
@@ -74,7 +82,6 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
 
     domain_results = dict(await asyncio.gather(*[_domain(d) for d in domains]))
 
-    # Domain-level status aggregation (mirrors fn_run_scan logic)
     dom_lvl: list[str] = []
     for dr in domain_results.values():
         d_st = [r["status"] for r in dr.values()]
@@ -110,7 +117,6 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
         "last_snapshot_id": snap.id,
     })
 
-    # Clean up previous snapshot (prevent store bloat)
     old_snap_id = mon.data.get("last_snapshot_id")
     if old_snap_id and old_snap_id != snap.id:
         try:
