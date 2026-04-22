@@ -138,9 +138,11 @@ async def _build_new_view(ctx) -> ui.UINode:
                 ui.Input(placeholder="Monitor name...", param_name="name"),
                 ui.TagInput(
                     values=[],
-                    placeholder="domain.com — press Enter to add",
+                    placeholder="domain.com — Enter · space · comma to add",
                     param_name="domains",
-                    delimiters=[","],
+                    delimiters=[",", " "],
+                    validate=r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$",
+                    validate_message="Enter a valid domain (e.g. example.com)",
                 ),
                 ui.Stack([
                     ui.Toggle(label="SSL",   param_name="ssl",       value=True),

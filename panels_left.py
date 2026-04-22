@@ -76,10 +76,10 @@ async def _domain_view(ctx) -> ui.UINode:
         defaults=defaults,
         children=[
             ui.TagInput(
-                values=[], param_name="domains", delimiters=[","],
-                placeholder="domain.com — press Enter to add",
+                values=[], param_name="domains", delimiters=[",", " "],
+                placeholder="domain.com — Enter · space · comma to add",
                 validate=_DOMAIN_RE,
-                validate_message="Enter a valid domain",
+                validate_message="Enter a valid domain (e.g. example.com)",
             ),
             _toggle_stack(_DOMAIN_TOGGLES),
         ],
@@ -118,8 +118,8 @@ async def _ip_view(ctx) -> ui.UINode:
         defaults=defaults,
         children=[
             ui.TagInput(
-                values=[], param_name="domains", delimiters=[","],
-                placeholder="1.2.3.4 — press Enter to add",
+                values=[], param_name="domains", delimiters=[",", " "],
+                placeholder="1.2.3.4 — Enter · space · comma to add",
             ),
             _toggle_stack(_IP_TOGGLES),
         ],
@@ -241,7 +241,7 @@ def _ip_expanded_kv(checks: dict) -> list:
 def _ip_scan_items(results: dict) -> list:
     items = []
     for ip, checks in sorted(results.items()):
-        statuses = [c.get("status", "ok") for c in checks.values()]
+        statuses = [c.get("status", "unknown") for c in checks.values()]
         overall  = (
             "critical" if "critical" in statuses else
             "warning"  if "warning"  in statuses else "ok"

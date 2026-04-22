@@ -70,13 +70,13 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
         ui.Stack([
             ui.Text(content=mon.data["name"], variant="subheading"),
             status_badge(status),
-        ], direction="horizontal", gap=2),
+        ], direction="h", gap=2),
         ui.Tooltip(
             content="Run health scan now for all domains in this monitor",
             children=ui.Button("Scan Now", icon="Play", variant="secondary", size="sm",
                                on_click=ui.Call("run_scan", monitor_id=mon.id)),
         ),
-    ], direction="horizontal", gap=2, justify="between", sticky=True, wrap=False)
+    ], direction="h", gap=2, justify="between", sticky=True, wrap=False)
 
     caption = ui.Text(
         content=f"{grp_name} · {interval}" + (f" · Last scan: {last}" if last else " · Never scanned"),
@@ -138,14 +138,14 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     ssum   = snap.data.get("summary", {}) if snap else {}
     n_d_ok = ssum.get("domains_ok",       sum(1 for d in domains.values()
                        if all(c.get("status") == "ok" for c in d.values())))
+    n_d_warn = ssum.get("domains_warning", 0)
+    n_d_crit = ssum.get("domains_critical", 0)
+    n_d_unk  = ssum.get("domains_unknown",  0)
     summary_parts = [f"{n_dom} domain{'s' if n_dom != 1 else ''}",
                      f"{n_d_ok} OK"]
-    if ssum.get("domains_warning", n_warn):
-        summary_parts.append(f"{ssum.get('domains_warning', n_warn)} warning")
-    if ssum.get("domains_critical", n_crit):
-        summary_parts.append(f"{ssum.get('domains_critical', n_crit)} critical")
-    if ssum.get("domains_unknown", n_unk):
-        summary_parts.append(f"{ssum.get('domains_unknown', n_unk)} unavailable")
+    if n_d_warn: summary_parts.append(f"{n_d_warn} warning")
+    if n_d_crit: summary_parts.append(f"{n_d_crit} critical")
+    if n_d_unk:  summary_parts.append(f"{n_d_unk} unavailable")
     summary = ui.Text(content=" · ".join(summary_parts), variant="caption")
 
     crit_alert: list = []

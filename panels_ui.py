@@ -189,13 +189,6 @@ def _check_subtitle(checks: dict) -> str:
     return " · ".join(parts)
 
 
-def _domain_explain_msg(d: str, c: dict) -> str:
-    issues = ", ".join(f"{k.upper()}={v['status']}" for k, v in c.items()
-                       if v.get("status") in ("warning", "critical"))
-    return (f"Explain {d}: {issues}. What is wrong and how to fix it?"
-            if issues else f"Scan for {d} OK. Any concerns to watch?")
-
-
 def _fmt_check_expanded(chk: str, data: dict) -> str:
     """Verbose single-line per check for expanded scan results view."""
     if not data or data.get("error"):

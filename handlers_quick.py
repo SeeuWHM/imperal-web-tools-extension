@@ -66,9 +66,12 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
             "geo":       f"/v1/geo/full/{d}",
             "ports":     f"/v1/ports/scan/{d}",
         }
-        resp = await ctx.http.get(f"{base}{_single[params.preset]}")
-        resp.raise_for_status()
-        body = resp.json()
+        try:
+            resp = await ctx.http.get(f"{base}{_single[params.preset]}")
+            resp.raise_for_status()
+            body = resp.json()
+        except Exception as exc:
+            return ActionResult.error(f"{params.preset.upper()} check failed: {exc}", retryable=True)
         if not body.get("success"):
             return ActionResult.error(body.get("error", "Check failed"), retryable=False)
         result_data = {"domain": d, "preset": params.preset,
