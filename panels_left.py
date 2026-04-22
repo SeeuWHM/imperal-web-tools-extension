@@ -5,7 +5,7 @@ from imperal_sdk import ui
 
 from panels_ui import scan_tool_items, status_badge, _REGION_DISPLAY
 
-_DOMAIN_RE = r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$"
+_DOMAIN_RE = r"^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$"
 
 # ─── Toggle definitions ───────────────────────────────────────────────────── #
 

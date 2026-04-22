@@ -141,7 +141,7 @@ async def _build_new_view(ctx) -> ui.UINode:
                     placeholder="domain.com — Enter · space · comma to add",
                     param_name="domains",
                     delimiters=[",", " "],
-                    validate=r"^[a-zA-Z0-9][a-zA-Z0-9.\-]+$",
+                    validate=r"^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$",
                     validate_message="Enter a valid domain (e.g. example.com)",
                 ),
                 ui.Stack([
