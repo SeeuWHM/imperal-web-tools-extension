@@ -252,9 +252,9 @@ def _monitors_section(grp_data: list, prf_data: list, mon_data: list,
 async def build_setup(ctx) -> ui.UINode:
     """Setup panel — auto-refreshes on group/profile/monitor events."""
     grp_page, prf_page, mon_page = await asyncio.gather(
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
     has_grp = bool(grp_page.data)
     has_prf = bool(prf_page.data)

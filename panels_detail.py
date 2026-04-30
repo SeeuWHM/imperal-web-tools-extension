@@ -38,8 +38,8 @@ def domain_items(domains_data: dict) -> list:
 async def build_detail(ctx, monitor_id: str) -> ui.UINode:
     """Per-monitor view: toolbar, pie chart, domain list, inline settings."""
     mon_page, grp_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
     grp_map = {g.id: g.data["name"] for g in grp_page.data}
     mon = next((m for m in mon_page.data if m.id == monitor_id), None)

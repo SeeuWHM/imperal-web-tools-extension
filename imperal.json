@@ -16,9 +16,7 @@
       "name": "skeleton_refresh_web_tools",
       "description": "Background refresh: domain monitor statuses from last scan snapshots.",
       "scopes": [],
-      "parameters": {
-        "kwargs": {"type": "string", "required": true}
-      }
+      "parameters": {}
     },
     {
       "name": "__panel__sidebar",

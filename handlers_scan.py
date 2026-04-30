@@ -102,7 +102,7 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
 async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not mon or mon.data.get("owner_id") != ctx.user.id:
+    if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
 
     grp = await ctx.store.get("wt_groups", mon.data["group_id"])
@@ -147,7 +147,7 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     old_snap_id = mon.data.get("last_snapshot_id")
     snap = await ctx.store.create("wt_snapshots", {
-        "owner_id":   ctx.user.id,
+        "owner_id":   ctx.user.imperal_id,
         "monitor_id": params.monitor_id,
         "status":     overall,
         "domains":    domain_results,
@@ -190,7 +190,7 @@ class GetScanResultsParams(BaseModel):
                description="Get the last scan snapshot for a monitor — per-domain per-check status, overall verdict and summary counts")
 async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not mon or mon.data.get("owner_id") != ctx.user.id:
+    if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
 
     snap_id = mon.data.get("last_snapshot_id")

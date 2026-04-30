@@ -29,18 +29,18 @@ class CreateMonitorParams(BaseModel):
                    f"NOT an automation rule. Max {MAX_MONITORS} monitors."
                ))
 async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
-    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
+    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:
         return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
     grp = await ctx.store.get("wt_groups", params.group_id)
-    if not grp or grp.data.get("owner_id") != ctx.user.id:
+    if not grp or grp.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     prf = await ctx.store.get("wt_profiles", params.profile_id)
-    if not prf or prf.data.get("owner_id") != ctx.user.id:
+    if not prf or prf.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Check profile not found.", retryable=False)
     interval = max(1, params.interval_hours)
     doc = await ctx.store.create("wt_monitors", {
-        "owner_id":         ctx.user.id,
+        "owner_id":         ctx.user.imperal_id,
         "name":             params.name[:50],
         "group_id":         params.group_id,
         "profile_id":       params.profile_id,
@@ -63,7 +63,7 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
 @chat.function("list_monitors", action_type="read",
                description="List all domain health monitors with group, check profile, interval, and last scan time")
 async def fn_list_monitors(ctx) -> ActionResult:
-    page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10)
+    page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
     monitors = [
         {
             "monitor_id":       d.id,
@@ -96,7 +96,7 @@ class UpdateMonitorParams(BaseModel):
                description="Update a domain health monitor — rename or change check interval")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
     patch: dict = {}
     if params.name:
@@ -126,12 +126,12 @@ class DeleteMonitorParams(BaseModel):
                description="Delete a domain health monitor (does not delete the domain group or check profile)")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
     name = doc.data["name"]
     # Cascade: delete all snapshots for this monitor
     snap_page = await ctx.store.query("wt_snapshots",
-                                      where={"owner_id": ctx.user.id,
+                                      where={"owner_id": ctx.user.imperal_id,
                                              "monitor_id": params.monitor_id},
                                       limit=200)
     if snap_page.data:
@@ -169,7 +169,7 @@ class CreateMonitorFullParams(BaseModel):
 @chat.function("create_monitor_full", action_type="write", event="monitor.created",
                description="Create a domain health monitor from the panel — provide name, domains, checks and interval. Atomically creates group, profile and monitor in one step.")
 async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:
-    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
+    count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:
         return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
 
@@ -199,15 +199,15 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
     now = datetime.datetime.utcnow().isoformat()
 
     grp = await ctx.store.create("wt_groups", {
-        "owner_id": ctx.user.id, "name": name,
+        "owner_id": ctx.user.imperal_id, "name": name,
         "domains": domains, "description": "", "created_at": now,
     })
     prf = await ctx.store.create("wt_profiles", {
-        "owner_id": ctx.user.id, "name": name,
+        "owner_id": ctx.user.imperal_id, "name": name,
         "checks": checks, "created_at": now,
     })
     doc = await ctx.store.create("wt_monitors", {
-        "owner_id": ctx.user.id, "name": name,
+        "owner_id": ctx.user.imperal_id, "name": name,
         "group_id": grp.id, "profile_id": prf.id,
         "interval_hours": interval, "enabled": True,
         "last_run_at": None, "last_snapshot_id": None, "created_at": now,

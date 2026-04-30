@@ -42,7 +42,7 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
     if not domain_list and params.domains_csv:
         domain_list = [d.strip() for d in
                        params.domains_csv.replace("\n", ",").split(",") if d.strip()]
-    count = await ctx.store.count("wt_groups", where={"owner_id": ctx.user.id})
+    count = await ctx.store.count("wt_groups", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_GROUPS:
         return ActionResult.error(f"Limit reached: {MAX_GROUPS} domain groups max. Delete one first.", retryable=False)
     if not domain_list:
@@ -57,7 +57,7 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
     if len(domain_list) > MAX_DOMAINS:
         return ActionResult.error(f"Too many domains ({len(domain_list)}). Max {MAX_DOMAINS} per group.", retryable=False)
     doc = await ctx.store.create("wt_groups", {
-        "owner_id":    ctx.user.id,
+        "owner_id":    ctx.user.imperal_id,
         "name":        params.name[:50],
         "domains":     domain_list,
         "description": params.description,
@@ -84,7 +84,7 @@ class UpdateGroupParams(BaseModel):
                description=f"Update a domain group — rename, add or remove domains (max {MAX_DOMAINS} total)")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     if params.domains:
         # Full replacement from TagInput panel edit
@@ -121,7 +121,7 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
 @chat.function("list_domain_groups", action_type="read",
                description="List all domain groups with their domains and count")
 async def fn_list_domain_groups(ctx) -> ActionResult:
-    page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.id}, limit=10)
+    page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.imperal_id}, limit=10)
     groups = [
         {"group_id": d.id, "name": d.data["name"],
          "domains": d.data["domains"], "domain_count": len(d.data["domains"])}
@@ -142,19 +142,19 @@ class DeleteGroupParams(BaseModel):
                description="Delete a domain group and all monitors that use it")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     name = doc.data["name"]
     await ctx.store.delete("wt_groups", params.group_id)
 
     mon_page = await ctx.store.query("wt_monitors",
-                                     where={"owner_id": ctx.user.id, "group_id": params.group_id},
+                                     where={"owner_id": ctx.user.imperal_id, "group_id": params.group_id},
                                      limit=10)
 
     async def _delete_monitor(m):
         snap_page = await ctx.store.query(
             "wt_snapshots",
-            where={"owner_id": ctx.user.id, "monitor_id": m.id},
+            where={"owner_id": ctx.user.imperal_id, "monitor_id": m.id},
             limit=100,
         )
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)

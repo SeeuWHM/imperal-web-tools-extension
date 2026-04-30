@@ -6,15 +6,16 @@ import asyncio
 from app import ext
 
 
-@ext.tool(
-    "skeleton_refresh_web_tools",
+@ext.skeleton(
+    "web_tools",
+    ttl=300,
     description="Refresh web-tools monitor statuses from last scan snapshots. "
                 "Provides instant Webbee context: how many monitors are critical/warning.",
 )
-async def on_refresh(ctx, **kwargs) -> dict:
+async def on_refresh(ctx) -> dict:
     """Load monitors + their last snapshot statuses for instant AI context."""
     try:
-        page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10)
+        page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
         if not page.data:
             return {"response": {
                 "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,

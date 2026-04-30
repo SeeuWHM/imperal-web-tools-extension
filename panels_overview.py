@@ -22,8 +22,8 @@ async def build_overview(ctx, view: str = "monitors") -> ui.UINode:
 
 async def _build_monitors_view(ctx) -> ui.UINode:
     mon_page, grp_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
     grp_map = {g.id: g.data["name"] for g in grp_page.data}
 
@@ -106,7 +106,7 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 # ─── New Monitor view ─────────────────────────────────────────────────────── #
 
 async def _build_new_view(ctx) -> ui.UINode:
-    count  = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
+    count  = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     header = ui.Stack([
         ui.Tooltip(
             content="Back to monitors",

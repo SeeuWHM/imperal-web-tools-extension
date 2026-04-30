@@ -79,8 +79,8 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         summary = f"{params.preset.upper()} check for {d} — done"
 
     qpage = await ctx.store.query("wt_quick_results",
-                                  where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, **result_data}
+                                  where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, **result_data}
     if qpage.data:
         await ctx.store.update("wt_quick_results", qpage.data[0].id, doc)
     else:
@@ -135,8 +135,8 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     now = datetime.datetime.utcnow().isoformat()
 
     spage = await ctx.store.query("wt_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, "domains": domains,
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, "domains": domains,
            "checks": checks, "results": results, "created_at": now}
     if spage.data:
         await ctx.store.update("wt_scan_results", spage.data[0].id, doc)
@@ -233,8 +233,8 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     now     = datetime.datetime.utcnow().isoformat()
 
     spage = await ctx.store.query("wt_ip_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, "ips": ips, "checks": list(checks),
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, "ips": ips, "checks": list(checks),
            "results": results, "created_at": now}
     if spage.data:
         await ctx.store.update("wt_ip_scan_results", spage.data[0].id, doc)
@@ -256,11 +256,11 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
                description="Panel summary — monitors, groups, profiles counts and statuses")
 async def fn_get_panel_data(ctx) -> ActionResult:
     mon_page, grp_page, prf_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    skel = getattr(ctx, "skeleton_data", {}).get("skeleton_refresh_web_tools", {})
+    skel = getattr(ctx, "skeleton_data", {}).get("web_tools", {})
     return ActionResult.success(data={
         "monitors":      len(mon_page.data),
         "domain_groups": len(grp_page.data),

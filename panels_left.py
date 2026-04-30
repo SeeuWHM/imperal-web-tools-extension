@@ -69,7 +69,7 @@ def _toggle_stack(toggles: list) -> ui.UINode:
 
 async def _domain_view(ctx) -> ui.UINode:
     spage = await ctx.store.query("wt_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
     defaults = {key: val for key, _, _, val in _DOMAIN_TOGGLES}
     form = ui.Form(
         action="run_scan_tool", submit_label="Scan",
@@ -111,7 +111,7 @@ async def _domain_view(ctx) -> ui.UINode:
 
 async def _ip_view(ctx) -> ui.UINode:
     spage = await ctx.store.query("wt_ip_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
     defaults = {key: val for key, _, _, val in _IP_TOGGLES}
     form = ui.Form(
         action="run_ip_scan", submit_label="Scan",
