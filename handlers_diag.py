@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
@@ -144,12 +144,23 @@ async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
 
 class GeoCheckParams(BaseModel):
     """Multi-region geo probe parameters."""
-    target: str
+    target: str = Field(description="Domain name or IP address")
     check_type: Literal["dns", "ping", "http", "ssl", "traceroute", "full"] = Field(
         default="full",
         description="Probe from EU/US/SG/MD: dns=resolution+mismatch, ping=latency, http=status, ssl=validity, traceroute, full=dns+http+ssl",
     )
     dns_type: Literal["A", "MX", "NS", "TXT", "CNAME"] = "A"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_domains_alias(cls, v):
+        if isinstance(v, dict) and not v.get("target"):
+            d = v.get("domains") or v.get("domain") or v.get("host")
+            if isinstance(d, list):
+                d = d[0] if d else ""
+            if d:
+                v = {**v, "target": d}
+        return v
 
 
 @chat.function("geo_check", action_type="read",

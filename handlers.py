@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
@@ -143,6 +143,17 @@ class NetworkCheckParams(BaseModel):
         default="ping",
         description="ping=RTT/loss, traceroute=MTR per-hop, reverse_dns=PTR, ip_lookup=geo+ASN, asn=ASN WHOIS",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_domains_alias(cls, v):
+        if isinstance(v, dict) and not v.get("target"):
+            d = v.get("domains") or v.get("domain") or v.get("host")
+            if isinstance(d, list):
+                d = d[0] if d else ""
+            if d:
+                v = {**v, "target": d}
+        return v
 
 
 @chat.function("network_check", action_type="read",
