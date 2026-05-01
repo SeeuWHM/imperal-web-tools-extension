@@ -112,7 +112,7 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     domains: list[str] = grp.data["domains"]
     checks:  list[str] = prf.data["checks"]
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     dom_sem = asyncio.Semaphore(3)
 

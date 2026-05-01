@@ -60,7 +60,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
         "owner_id":   ctx.user.imperal_id,
         "name":       params.name[:50],
         "checks":     deduped,
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
         data={"profile_id": doc.id, "name": params.name, "checks": deduped},

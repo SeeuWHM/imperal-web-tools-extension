@@ -48,7 +48,7 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
         "enabled":          True,
         "last_run_at":      None,
         "last_snapshot_id": None,
-        "created_at":       datetime.datetime.utcnow().isoformat(),
+        "created_at":       datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
         data={"monitor_id": doc.id, "name": params.name,
@@ -196,7 +196,7 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
         return ActionResult.error("Select at least one check type.", retryable=False)
 
     interval = max(1, int(params.interval_hours or 24))
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     grp = await ctx.store.create("wt_groups", {
         "owner_id": ctx.user.imperal_id, "name": name,

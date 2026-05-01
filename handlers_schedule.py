@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 @ext.schedule("wt_monitor_runner", cron="0 * * * *")
 async def run_scheduled_monitors(ctx) -> None:
     """Hourly: fan-out across all users, scan overdue monitors."""
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     run_count = 0
     try:
         async for user_id in ctx.store.list_users("wt_monitors"):
@@ -57,9 +57,12 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
 
     if last_run:
         try:
-            elapsed_h = (now - datetime.datetime.fromisoformat(last_run)).total_seconds() / 3600
-        except ValueError:
-            elapsed_h = interval_h + 1  # malformed date → run it
+            last_run_dt = datetime.datetime.fromisoformat(last_run)
+            if last_run_dt.tzinfo is None:
+                last_run_dt = last_run_dt.replace(tzinfo=datetime.timezone.utc)
+            elapsed_h = (now - last_run_dt).total_seconds() / 3600
+        except (ValueError, TypeError):
+            elapsed_h = interval_h + 1  # malformed or incompatible timestamp → run it
         if elapsed_h < interval_h:
             return False
 

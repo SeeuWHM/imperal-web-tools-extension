@@ -42,9 +42,9 @@ def fmt_interval(hours: int) -> str:
 
 def status_badge(status: str) -> ui.Badge:
     """Colored Badge for monitor/domain status. Expects: ok/warning/critical/unknown."""
-    _color = {"ok": "green", "warning": "yellow", "critical": "red"}
-    _label = {"ok": "OK",    "warning": "Warning", "critical": "Critical"}
-    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "gray"))
+    _color = {"ok": "success", "warning": "warning", "critical": "danger"}
+    _label = {"ok": "OK",      "warning": "Warning",  "critical": "Critical"}
+    return ui.Badge(label=_label.get(status, "—"), color=_color.get(status, "neutral"))
 
 
 def _fmt_check_value(chk: str, data: dict | None) -> str:
@@ -257,6 +257,18 @@ def _fmt_check_expanded(chk: str, data: dict) -> str:
             parts.append(f"{p.get('port')} {sym}" + (f" {svc}" if svc else ""))
         return " · ".join(parts[:8]) or "—"
     return _fmt_check_value(chk, data)
+
+
+def build_check_toggles(enabled_checks: list[str]) -> ui.UINode:
+    """Toggle group for check profile editor — one Toggle per check in PROFILE_CHECK_OPTS."""
+    return ui.Stack([
+        ui.Toggle(
+            label=opt["label"],
+            param_name=opt["value"],
+            value=opt["value"] in enabled_checks,
+        )
+        for opt in PROFILE_CHECK_OPTS
+    ], direction="v", gap=2)
 
 
 def scan_tool_items(results: dict) -> list:

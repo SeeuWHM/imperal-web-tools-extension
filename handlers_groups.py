@@ -61,7 +61,7 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
         "name":        params.name[:50],
         "domains":     domain_list,
         "description": params.description,
-        "created_at":  datetime.datetime.utcnow().isoformat(),
+        "created_at":  datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
         data={"group_id": doc.id, "name": params.name, "domains": params.domains},

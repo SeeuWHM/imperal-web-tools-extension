@@ -31,7 +31,7 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         return ActionResult.error("Enter a domain or IP address.", retryable=False)
 
     base = WEB_TOOLS_URL
-    now  = datetime.datetime.utcnow().isoformat()
+    now  = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     if params.preset == "full":
         _urls = {
@@ -132,7 +132,7 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
             return d, await _run_domain_checks(ctx, d, checks)
 
     results = dict(await asyncio.gather(*[_scan(d) for d in domains]))
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     spage = await ctx.store.query("wt_scan_results",
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
@@ -230,7 +230,7 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
             return ip, outcome
 
     results = dict(await asyncio.gather(*[_scan(ip) for ip in ips]))
-    now     = datetime.datetime.utcnow().isoformat()
+    now     = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     spage = await ctx.store.query("wt_ip_scan_results",
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
@@ -260,12 +260,27 @@ async def fn_get_panel_data(ctx) -> ActionResult:
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    skel = getattr(ctx, "skeleton_data", {}).get("web_tools", {})
+    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.data]
+
+    async def _snap(sid):
+        if sid:
+            return await ctx.store.get("wt_snapshots", sid)
+        return None
+
+    snaps = await asyncio.gather(*[_snap(sid) for sid in snap_ids])
+    critical = warning = ok = 0
+    for s in snaps:
+        if s:
+            st = s.data.get("status", "unknown")
+            if st == "critical":  critical += 1
+            elif st == "warning": warning  += 1
+            elif st == "ok":      ok       += 1
+
     return ActionResult.success(data={
         "monitors":      len(mon_page.data),
         "domain_groups": len(grp_page.data),
         "profiles":      len(prf_page.data),
-        "critical":      skel.get("critical", 0),
-        "warning":       skel.get("warning",  0),
-        "ok":            skel.get("ok",        0),
+        "critical":      critical,
+        "warning":       warning,
+        "ok":            ok,
     }, summary=f"Web Tools: {len(mon_page.data)} monitor(s)")
