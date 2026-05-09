@@ -20,7 +20,7 @@ class DnsLookupParams(BaseModel):
 
 
 @chat.function("dns_lookup", action_type="read",
-               description="DNS records — A/AAAA/IP/MX/NS/TXT/CNAME/SRV/DNSSEC/all types, global propagation check, authoritative NS direct query")
+               description="DNS record lookup — A/AAAA/MX/NS/TXT/CNAME/SRV/DNSSEC, global propagation across 15+ resolvers, direct authoritative NS query. Use for any DNS question.")
 async def fn_dns_lookup(ctx, params: DnsLookupParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.record_type == "propagation":
@@ -51,7 +51,7 @@ class SslCheckParams(BaseModel):
 
 
 @chat.function("ssl_check", action_type="read",
-               description="SSL certificate — validity, issuer, expiry days, grade A-F. Full mode: chain, SANs, fingerprint, TLS protocols")
+               description="SSL/TLS certificate — expiry date, days remaining, issuer, grade A-F. Full mode adds chain, SANs, fingerprint and TLS version support.")
 async def fn_ssl_check(ctx, params: SslCheckParams) -> ActionResult:
     suffix = "/full" if params.full else ""
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/ssl/{params.domain}{suffix}",
@@ -80,7 +80,7 @@ class WhoisParams(BaseModel):
 
 
 @chat.function("whois_lookup", action_type="read",
-               description="WHOIS — domain registrar/dates/nameservers/status or IP ASN/org/country. Detail: quick/full/dates/registrar/availability")
+               description="WHOIS for domain (registrar, dates, nameservers, status) or IP (ASN, org, country). Use detail= for targeted sections: quick/full/dates/registrar/availability.")
 async def fn_whois_lookup(ctx, params: WhoisParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.target_type == "ip":
@@ -114,7 +114,7 @@ class HttpCheckParams(BaseModel):
 
 
 @chat.function("http_check", action_type="read",
-               description="HTTP — security headers grade A+ to F (HSTS/CSP/XFO/XCTO), missing headers with fix tips, redirect chain, status/response time")
+               description="HTTP security headers grade A+ to F (HSTS/CSP/X-Frame-Options/X-Content-Type-Options). Shows missing headers with fix tips, redirect chain, response time.")
 async def fn_http_check(ctx, params: HttpCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.check_type in ("headers", "grade", "quick", "missing"):
@@ -161,7 +161,7 @@ class NetworkCheckParams(BaseModel):
 
 
 @chat.function("network_check", action_type="read",
-               description="Network — ICMP ping RTT/loss, MTR traceroute per-hop stats, PTR reverse DNS, IP geolocation+ASN, ASN WHOIS prefixes")
+               description="Network diagnostics — ICMP ping (RTT/loss), MTR traceroute per-hop, reverse DNS (PTR), IP geolocation + ASN, ASN WHOIS prefix list.")
 async def fn_network_check(ctx, params: NetworkCheckParams) -> ActionResult:
     paths = {
         "ping":            f"/v1/network/ping/{params.target}",
@@ -194,7 +194,7 @@ class SeoCheckParams(BaseModel):
 
 
 @chat.function("seo_check", action_type="read",
-               description="SEO — meta tags (title/description lengths/issues), robots.txt rules, sitemap.xml validation, Google indexing status")
+               description="SEO check — meta title/description length and issues, robots.txt rules, sitemap.xml validation, Google indexing status. Use check_type to target a specific area.")
 async def fn_seo_check(ctx, params: SeoCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
     use_url = params.check_type == "meta"

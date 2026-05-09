@@ -34,8 +34,14 @@ class CreateGroupParams(BaseModel):
     description: str = ""
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("create_domain_group", action_type="write", event="group.created",
-               description=f"Create a domain group — organizes domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each)")
+               description=f"Create a named group of domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each). Required before creating a monitor with create_monitor.")
 async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult:
     # Panel form sends domains_csv (plain text); chat sends domains (list)
     domain_list = params.domains
@@ -81,7 +87,7 @@ class UpdateGroupParams(BaseModel):
 
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
-               description=f"Update a domain group — rename, add or remove domains (max {MAX_DOMAINS} total)")
+               description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
@@ -119,8 +125,8 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
 
 
 @chat.function("list_domain_groups", action_type="read",
-               description="List all domain groups with their domains and count")
-async def fn_list_domain_groups(ctx) -> ActionResult:
+               description="Show all domain groups — names, domain lists and domain count. Call before create_monitor to pick the right group_id.")
+async def fn_list_domain_groups(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.imperal_id}, limit=10)
     groups = [
         {"group_id": d.id, "name": d.data["name"],
@@ -139,7 +145,7 @@ class DeleteGroupParams(BaseModel):
 
 
 @chat.function("delete_domain_group", action_type="destructive", event="group.deleted",
-               description="Delete a domain group and all monitors that use it")
+               description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:

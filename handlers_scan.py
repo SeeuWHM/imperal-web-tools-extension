@@ -92,7 +92,7 @@ class RunScanParams(BaseModel):
 
 
 @chat.function("run_scan", action_type="write", event="scan.completed",
-               description="Trigger an immediate scan for a monitor — checks all domains in the group with the profile checks in parallel, stores a snapshot")
+               description="Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.")
 async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
     try:
         return await _do_run_scan(ctx, params)
@@ -187,7 +187,7 @@ class GetScanResultsParams(BaseModel):
 
 
 @chat.function("get_scan_results", action_type="read",
-               description="Get the last scan snapshot for a monitor — per-domain per-check status, overall verdict and summary counts")
+               description="Get the latest scan snapshot for a monitor — per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.")
 async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
     if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:

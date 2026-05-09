@@ -26,7 +26,7 @@ class EmailCheckParams(BaseModel):
 
 
 @chat.function("email_check", action_type="read",
-               description="Email deliverability — SPF/DMARC/DKIM/BIMI check, full grade A-F with findings, parse raw email headers (trace originating IP), generate SPF/DMARC records")
+               description="Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.")
 async def fn_email_check(ctx, params: EmailCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.check_type == "dkim":
@@ -68,7 +68,7 @@ class BlacklistParams(BaseModel):
 
 
 @chat.function("blacklist_check", action_type="read",
-               description="Blacklist reputation — IP against 30 DNSBL (Spamhaus ZEN/SBL/XBL, SpamCop, Barracuda) or domain SURBL. Verdict: clean/listed/critical")
+               description="Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL. Returns verdict: clean / listed / critical.")
 async def fn_blacklist_check(ctx, params: BlacklistParams) -> ActionResult:
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/blacklist/{params.target_type}/{params.target}")
     resp.raise_for_status()
@@ -95,7 +95,7 @@ class PortScanParams(BaseModel):
 
 
 @chat.function("port_scan", action_type="read",
-               description="TCP ports — single port status (open/closed/filtered) or preset scan: web/mail/database/all ports in parallel")
+               description="TCP port check — single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all.")
 async def fn_port_scan(ctx, params: PortScanParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.port > 0:
@@ -124,7 +124,7 @@ class SmtpTestParams(BaseModel):
 
 
 @chat.function("smtp_test", action_type="read",
-               description="SMTP server test — connect via MX or direct host, EHLO handshake, STARTTLS, AUTH methods, server banner and software")
+               description="SMTP server test — connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner. Use to diagnose email delivery problems.")
 async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.port > 0:
@@ -166,7 +166,7 @@ class GeoCheckParams(BaseModel):
 
 
 @chat.function("geo_check", action_type="read",
-               description="Multi-region probe from EU/US/SG/MD — DNS mismatch (anycast), ping latency, HTTP availability, SSL validity, MTR traceroute per region")
+               description="Multi-region probe from EU/US/SG/MD — DNS resolution + anycast mismatch, ping latency, HTTP availability, SSL validity, MTR traceroute, independently per region.")
 async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.check_type == "dns":
@@ -196,7 +196,7 @@ class DomainFullCheckParams(BaseModel):
 
 
 @chat.function("domain_full_check", action_type="read",
-               description="Full parallel domain audit — DNS+SSL+WHOIS+HTTP+email+blacklist+geo simultaneously. Best for complete domain health check")
+               description="Complete domain audit — runs DNS+SSL+WHOIS+HTTP+email+blacklist+geo in parallel in one call. Use when user asks for full site health, domain report or audit.")
 async def fn_domain_full_check(ctx, params: DomainFullCheckParams) -> ActionResult:
     check_urls = {
         "dns":       f"/v1/dns/all/{params.domain}",

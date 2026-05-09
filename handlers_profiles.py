@@ -34,8 +34,14 @@ class CreateProfileParams(BaseModel):
     checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("create_check_profile", action_type="write", event="profile.created",
-               description=f"Create a check profile — defines which checks to run per domain "
+               description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_GROUPS} profiles, max {MAX_CHECKS} checks each). "
                            f"health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
     if params.panel_mode:
@@ -72,8 +78,8 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
 # ─── List ─────────────────────────────────────────────────────────────────── #
 
 @chat.function("list_check_profiles", action_type="read",
-               description="List all check profiles with their configured check types")
-async def fn_list_check_profiles(ctx) -> ActionResult:
+               description="Show all check profiles — names and enabled check types. Call before create_monitor to pick the right profile_id.")
+async def fn_list_check_profiles(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10)
     profiles = [
         {"profile_id": d.id, "name": d.data["name"], "checks": d.data["checks"]}
@@ -106,7 +112,7 @@ class UpdateProfileParams(BaseModel):
 
 
 @chat.function("update_check_profile", action_type="write", event="profile.updated",
-               description="Update a check profile — rename or change which checks it runs")
+               description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
@@ -145,7 +151,7 @@ class DeleteProfileParams(BaseModel):
 
 
 @chat.function("delete_check_profile", action_type="destructive", event="profile.deleted",
-               description="Delete a check profile and all monitors that use it")
+               description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:

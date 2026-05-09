@@ -21,6 +21,12 @@ class CreateMonitorParams(BaseModel):
     interval_hours: int = Field(default=24, description="How often to run checks, in hours (1/6/12/24/48/168)")
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("create_monitor", action_type="write", event="monitor.created",
                description=(
                    f"Create a domain health monitor — saves a wt_monitors record that runs "
@@ -61,8 +67,8 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
 # ─── List Monitors ─────────────────────────────────────────────────────────── #
 
 @chat.function("list_monitors", action_type="read",
-               description="List all domain health monitors with group, check profile, interval, and last scan time")
-async def fn_list_monitors(ctx) -> ActionResult:
+               description="Show all domain health monitors — name, group, check profile, scan interval and last scan time. Use to find monitor_id for run_scan or update_monitor.")
+async def fn_list_monitors(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
     monitors = [
         {
@@ -93,7 +99,7 @@ class UpdateMonitorParams(BaseModel):
 
 
 @chat.function("update_monitor", action_type="write", event="monitor.updated",
-               description="Update a domain health monitor — rename or change check interval")
+               description="Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
@@ -123,7 +129,7 @@ class DeleteMonitorParams(BaseModel):
 
 
 @chat.function("delete_monitor", action_type="destructive", event="monitor.deleted",
-               description="Delete a domain health monitor (does not delete the domain group or check profile)")
+               description="Delete a monitor. The domain group and check profile are preserved and can be reused.")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
@@ -167,7 +173,8 @@ class CreateMonitorFullParams(BaseModel):
 
 
 @chat.function("create_monitor_full", action_type="write", event="monitor.created",
-               description="Create a domain health monitor from the panel — provide name, domains, checks and interval. Atomically creates group, profile and monitor in one step.")
+               description="Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor."
+)
 async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:
     count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:

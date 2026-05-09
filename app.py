@@ -12,6 +12,14 @@ from imperal_sdk.chat import ChatExtension
 ext = Extension(
     "web-tools",
     version="1.4.0",
+    display_name="Web Tools",
+    description=(
+        "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
+        "WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, "
+        "SMTP test, recurring automated monitors with alerts."
+    ),
+    icon="icon.svg",
+    actions_explicit=True,
     capabilities=["store:read", "store:write"],
 )
 

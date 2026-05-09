@@ -24,8 +24,14 @@ class QuickCheckParams(BaseModel):
     )
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("quick_check", action_type="write", event="quick.completed",
-               description="Quick domain check from panel — DNS/SSL/HTTP/email/blacklist/geo/ports. Result stored and shown in right panel.")
+               description="Single-domain quick check from the panel — choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.")
 async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     d = params.domain.strip()
     if not d:
@@ -110,7 +116,7 @@ class ScanToolParams(BaseModel):
 
 
 @chat.function("run_scan_tool", action_type="write", event="scan.tool",
-               description="Scan one or more domains/IPs on demand — select checks via toggles. Results shown in the left panel.")
+               description="Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel. Use when user provides a list of domains to check simultaneously.")
 async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     domains = list(dict.fromkeys(
         d.strip() for d in (params.domains or []) if d.strip()
@@ -189,7 +195,7 @@ def _ip_status(check: str, data: dict) -> str:
 
 
 @chat.function("run_ip_scan", action_type="write", event="scan.tool",
-               description="Scan IP addresses — IP lookup (geo/ASN), blacklist (29 DNSBL), reverse DNS (PTR), port scan, geo ping from 4 regions.")
+               description="Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
     if not ips:
@@ -260,8 +266,8 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
 # ─── Panel Data (chat LLM context) ────────────────────────────────────────── #
 
 @chat.function("get_panel_data", action_type="read",
-               description="Panel summary — monitors, groups, profiles counts and statuses")
-async def fn_get_panel_data(ctx) -> ActionResult:
+               description="Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.")
+async def fn_get_panel_data(ctx, params: EmptyParams) -> ActionResult:
     mon_page, grp_page, prf_page = await asyncio.gather(
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
