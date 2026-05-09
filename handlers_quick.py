@@ -81,8 +81,8 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     qpage = await ctx.store.query("wt_quick_results",
                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, **result_data}
-    if qpage.data:
-        await ctx.store.update("wt_quick_results", qpage.data[0].id, doc)
+    if qpage.items:
+        await ctx.store.update("wt_quick_results", qpage.items[0].id, doc)
     else:
         await ctx.store.create("wt_quick_results", doc)
 
@@ -138,8 +138,8 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, "domains": domains,
            "checks": checks, "results": results, "created_at": now}
-    if spage.data:
-        await ctx.store.update("wt_scan_results", spage.data[0].id, doc)
+    if spage.items:
+        await ctx.store.update("wt_scan_results", spage.items[0].id, doc)
     else:
         await ctx.store.create("wt_scan_results", doc)
 
@@ -236,8 +236,8 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, "ips": ips, "checks": list(checks),
            "results": results, "created_at": now}
-    if spage.data:
-        await ctx.store.update("wt_ip_scan_results", spage.data[0].id, doc)
+    if spage.items:
+        await ctx.store.update("wt_ip_scan_results", spage.items[0].id, doc)
     else:
         await ctx.store.create("wt_ip_scan_results", doc)
 
@@ -260,7 +260,7 @@ async def fn_get_panel_data(ctx) -> ActionResult:
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.data]
+    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.items]
 
     async def _snap(sid):
         if sid:
@@ -277,10 +277,10 @@ async def fn_get_panel_data(ctx) -> ActionResult:
             elif st == "ok":      ok       += 1
 
     return ActionResult.success(data={
-        "monitors":      len(mon_page.data),
-        "domain_groups": len(grp_page.data),
-        "profiles":      len(prf_page.data),
+        "monitors":      len(mon_page.items),
+        "domain_groups": len(grp_page.items),
+        "profiles":      len(prf_page.items),
         "critical":      critical,
         "warning":       warning,
         "ok":            ok,
-    }, summary=f"Web Tools: {len(mon_page.data)} monitor(s)")
+    }, summary=f"Web Tools: {len(mon_page.items)} monitor(s)")

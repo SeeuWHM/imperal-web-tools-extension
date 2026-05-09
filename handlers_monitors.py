@@ -75,7 +75,7 @@ async def fn_list_monitors(ctx) -> ActionResult:
             "last_run_at":      d.data.get("last_run_at"),
             "last_snapshot_id": d.data.get("last_snapshot_id"),
         }
-        for d in page.data
+        for d in page.items
     ]
     return ActionResult.success(
         data={"monitors": monitors, "total": len(monitors)},
@@ -134,9 +134,9 @@ async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
                                       where={"owner_id": ctx.user.imperal_id,
                                              "monitor_id": params.monitor_id},
                                       limit=200)
-    if snap_page.data:
+    if snap_page.items:
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.data])
+                                for s in snap_page.items])
     await ctx.store.delete("wt_monitors", params.monitor_id)
     return ActionResult.success(
         data={"monitor_id": params.monitor_id},

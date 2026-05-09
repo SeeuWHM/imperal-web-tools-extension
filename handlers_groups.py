@@ -125,7 +125,7 @@ async def fn_list_domain_groups(ctx) -> ActionResult:
     groups = [
         {"group_id": d.id, "name": d.data["name"],
          "domains": d.data["domains"], "domain_count": len(d.data["domains"])}
-        for d in page.data
+        for d in page.items
     ]
     return ActionResult.success(
         data={"groups": groups, "total": len(groups)},
@@ -158,10 +158,10 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
             limit=100,
         )
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.data])
+                                for s in snap_page.items])
         await ctx.store.delete("wt_monitors", m.id)
 
-    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
+    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.items])
 
     return ActionResult.success(
         data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},

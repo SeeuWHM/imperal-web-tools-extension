@@ -29,7 +29,7 @@ async def run_scheduled_monitors(ctx) -> None:
             try:
                 page = await user_ctx.store.query("wt_monitors",
                                                   where={"enabled": True}, limit=100)
-                for mon in page.data:
+                for mon in page.items:
                     try:
                         ran = await _maybe_run(user_ctx, mon, now)
                         if ran:

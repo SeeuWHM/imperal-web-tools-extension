@@ -298,3 +298,87 @@ def scan_tool_items(results: dict) -> list:
         ))
     return items
 
+
+def domain_items(domains_data: dict) -> list:
+    """Expandable ListItem per domain — status badge on row, per-check KV detail on expand."""
+    items = []
+    for domain, checks in sorted(domains_data.items()):
+        statuses    = [c.get("status", "unknown") for c in checks.values()]
+        has_unknown = "unknown" in statuses
+        overall     = (
+            "critical" if "critical" in statuses else
+            "warning"  if "warning"  in statuses else
+            "ok"       if "ok" in statuses and not has_unknown else
+            "unknown"
+        )
+        kv = [
+            {"key": chk.upper(), "value": _fmt_check_value(chk, res.get("data") or {})}
+            for chk, res in checks.items()
+        ]
+        expanded = (
+            [ui.KeyValue(items=kv, columns=2)] if kv
+            else [ui.Text(content="No check data available", variant="caption")]
+        )
+        items.append(ui.ListItem(
+            id=domain,
+            title=domain,
+            subtitle=_check_subtitle(checks),
+            badge=status_badge(overall),
+            expandable=True,
+            expanded_content=expanded,
+        ))
+    return items
+
+
+# ─── IP Scan result helpers ───────────────────────────────────────────────── #
+
+def _fmt_ip_val(chk: str, data: dict) -> str:
+    """One-line summary for a single IP check result."""
+    if not data:
+        return ""
+    if chk == "ip_lookup":
+        country = data.get("country", "")
+        org     = (data.get("org") or "")[:22]
+        return f"{country} · {org}".strip(" ·") or "—"
+    if chk == "blacklist":
+        verdict = data.get("verdict", "clean")
+        if verdict == "clean":
+            return "BL Clean"
+        total = data.get("listed_count", 0)
+        names = [r["name"] for r in (data.get("results") or []) if r.get("listed")][:2]
+        more  = f" +{total - len(names)}" if total > len(names) else ""
+        return (f"BL: {', '.join(names)}{more}" if names else f"BL Listed ({total})")
+    if chk == "reverse":
+        hn = data.get("hostname") or data.get("ptr")
+        return f"PTR: {hn}" if hn else "No PTR"
+    if chk == "ports":
+        open_p = [str(p["port"]) for p in (data.get("ports") or [])
+                  if p.get("status") == "open"]
+        return f"Open: {', '.join(open_p[:4])}" if open_p else "All closed"
+    if chk == "geo_ping":
+        regions = data.get("regions", {})
+        reach   = sum(1 for r in regions.values()
+                      if isinstance(r, dict) and r.get("reachable"))
+        return f"Ping {reach}/{len(regions)}"
+    return chk.upper()
+
+
+def ip_scan_items(results: dict) -> list:
+    """Compact non-expandable ListItems for IP Scan Tool."""
+    items = []
+    for ip, checks in sorted(results.items()):
+        statuses = [c.get("status", "ok") for c in checks.values()]
+        overall  = (
+            "critical" if "critical" in statuses else
+            "warning"  if "warning"  in statuses else "ok"
+        )
+        parts    = [_fmt_ip_val(chk, (res.get("data") or {}))
+                    for chk, res in checks.items()]
+        subtitle = " · ".join(p for p in parts if p)
+        items.append(ui.ListItem(
+            id=ip, title=ip,
+            subtitle=subtitle or "—",
+            badge=status_badge(overall),
+        ))
+    return items
+

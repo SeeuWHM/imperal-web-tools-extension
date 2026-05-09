@@ -5,32 +5,7 @@ import asyncio
 
 from imperal_sdk import ui
 
-from panels_ui import (status_badge, _fmt_check_value, _check_subtitle,
-                       INTERVAL_OPTS, fmt_interval)
-
-
-def domain_items(domains_data: dict) -> list:
-    """Expandable ListItem per domain — used in monitor detail view."""
-    items = []
-    for domain, checks in sorted(domains_data.items()):
-        statuses    = [c.get("status", "unknown") for c in checks.values()]
-        has_unknown = "unknown" in statuses
-        overall     = (
-            "critical" if "critical" in statuses else
-            "warning"  if "warning"  in statuses else
-            "ok"       if "ok" in statuses and not has_unknown else "unknown"
-        )
-        kv = [{"key": chk.upper(), "value": _fmt_check_value(chk, res.get("data") or {})}
-              for chk, res in checks.items()]
-        expanded = ([ui.Stack([ui.KeyValue(items=kv, columns=2)], className="select-text")]
-                    if kv else [ui.Text(content="No data", variant="caption")])
-        items.append(ui.ListItem(
-            id=domain, title=domain,
-            subtitle=_check_subtitle(checks),
-            badge=status_badge(overall),
-            expandable=True, expanded_content=expanded,
-        ))
-    return items
+from panels_ui import status_badge, domain_items, INTERVAL_OPTS, fmt_interval
 
 
 # ─── Detail builder ───────────────────────────────────────────────────────── #
@@ -41,8 +16,8 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    grp_map = {g.id: g.data["name"] for g in grp_page.data}
-    mon = next((m for m in mon_page.data if m.id == monitor_id), None)
+    grp_map = {g.id: g.data["name"] for g in grp_page.items}
+    mon = next((m for m in mon_page.items if m.id == monitor_id), None)
 
     if not mon:
         return ui.Stack([
@@ -83,9 +58,9 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
         variant="caption",
     )
 
-    # ── Inline settings (collapsed Card) ─────────────────────────────────── #
+    # ── Inline settings (collapsed Accordion) ────────────────────────────── #
     settings = ui.Accordion(sections=[{
-        "id": "settings", "title": "⚙ Settings",
+        "id": "settings", "title": "Settings",
         "children": [ui.Stack([
             ui.Text(content="Rename monitor or change scan frequency.",
                     variant="caption"),
@@ -136,16 +111,15 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
 
     n_dom  = len(domains)
     ssum   = snap.data.get("summary", {}) if snap else {}
-    n_d_ok = ssum.get("domains_ok",       sum(1 for d in domains.values()
+    n_d_ok = ssum.get("domains_ok", sum(1 for d in domains.values()
                        if all(c.get("status") == "ok" for c in d.values())))
-    n_d_warn = ssum.get("domains_warning", 0)
-    n_d_crit = ssum.get("domains_critical", 0)
-    n_d_unk  = ssum.get("domains_unknown",  0)
-    summary_parts = [f"{n_dom} domain{'s' if n_dom != 1 else ''}",
-                     f"{n_d_ok} OK"]
-    if n_d_warn: summary_parts.append(f"{n_d_warn} warning")
-    if n_d_crit: summary_parts.append(f"{n_d_crit} critical")
-    if n_d_unk:  summary_parts.append(f"{n_d_unk} unavailable")
+    summary_parts = [f"{n_dom} domain{'s' if n_dom != 1 else ''}", f"{n_d_ok} OK"]
+    if ssum.get("domains_warning", n_warn):
+        summary_parts.append(f"{ssum.get('domains_warning', n_warn)} warning")
+    if ssum.get("domains_critical", n_crit):
+        summary_parts.append(f"{ssum.get('domains_critical', n_crit)} critical")
+    if ssum.get("domains_unknown", n_unk):
+        summary_parts.append(f"{ssum.get('domains_unknown', n_unk)} unavailable")
     summary = ui.Text(content=" · ".join(summary_parts), variant="caption")
 
     crit_alert: list = []

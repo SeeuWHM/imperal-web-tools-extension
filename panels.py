@@ -9,11 +9,10 @@ from panels_detail   import build_detail
 
 # ─── Refresh triggers ─────────────────────────────────────────────────────── #
 
-# Left (Scan Tool): refresh after run_scan_tool (via refresh_panels), also on
-# scheduled scans completing so sidebar results don't go stale if open
+# Left (Scan Tool): refresh after run_scan_tool fires scan.tool event
 _LEFT_REFRESH  = "on_event:scan.tool"
 
-# Right (Monitors): refresh when scheduler runs a monitor scan (status update)
+# Right (Monitors): refresh when a monitor scan completes
 _RIGHT_REFRESH = "on_event:scan.completed"
 
 
@@ -29,7 +28,7 @@ async def panel_sidebar(ctx, view: str = "domain", **kwargs):
 @ext.panel("overview", slot="right", title="Domain Health", icon="Activity",
            refresh=_RIGHT_REFRESH)
 async def panel_overview(ctx, view: str = "monitors", **kwargs):
-    """Right panel: Monitors view or New Monitor view (manual tab buttons)."""
+    """Right panel: Monitors view or New Monitor view."""
     return await build_overview(ctx, view=view)
 
 
