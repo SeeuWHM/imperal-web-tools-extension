@@ -41,8 +41,7 @@ class EmptyParams(BaseModel):
 
 
 @chat.function("create_check_profile", action_type="write", event="profile.created",
-               description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_GROUPS} profiles, max {MAX_CHECKS} checks each). "
-                           f"health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
+               description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each).")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
     if params.panel_mode:
         _order = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
