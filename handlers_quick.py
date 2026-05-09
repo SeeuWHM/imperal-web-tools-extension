@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from imperal_sdk.chat import TaskCancelled
 from handlers_scan import _run_domain_checks
 
 
@@ -81,14 +82,14 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     qpage = await ctx.store.query("wt_quick_results",
                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, **result_data}
-    if qpage.items:
-        await ctx.store.update("wt_quick_results", qpage.items[0].id, doc)
+    if qpage.data:
+        await ctx.store.update("wt_quick_results", qpage.data[0].id, doc)
     else:
         await ctx.store.create("wt_quick_results", doc)
 
     return ActionResult.success(
         data=result_data, summary=summary,
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -125,11 +126,17 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     if not checks:
         return ActionResult.error("Enable at least one check.", retryable=False)
 
-    dom_sem = asyncio.Semaphore(3)
+    await ctx.progress(percent=0, message=f"Starting scan: {len(domains)} domain(s), {len(checks)} check(s)…")
+    dom_sem  = asyncio.Semaphore(3)
+    done     = [0]
 
     async def _scan(d: str) -> tuple[str, dict]:
         async with dom_sem:
-            return d, await _run_domain_checks(ctx, d, checks)
+            result = await _run_domain_checks(ctx, d, checks)
+            done[0] += 1
+            pct = int(done[0] / len(domains) * 90)
+            await ctx.progress(percent=pct, message=f"Scanned {done[0]}/{len(domains)}: {d}")
+            return d, result
 
     results = dict(await asyncio.gather(*[_scan(d) for d in domains]))
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -138,8 +145,8 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, "domains": domains,
            "checks": checks, "results": results, "created_at": now}
-    if spage.items:
-        await ctx.store.update("wt_scan_results", spage.items[0].id, doc)
+    if spage.data:
+        await ctx.store.update("wt_scan_results", spage.data[0].id, doc)
     else:
         await ctx.store.create("wt_scan_results", doc)
 
@@ -148,7 +155,7 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     return ActionResult.success(
         data={"scanned": len(domains), "checks": checks, "issues": issues},
         summary=f"Scanned {len(domains)} domain(s) — {issues} issue(s)",
-        refresh_panels=["__panel__sidebar"],
+        refresh_panels=["sidebar"],
     )
 
 
@@ -236,8 +243,8 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
                                    where={"owner_id": ctx.user.imperal_id}, limit=1)
     doc = {"owner_id": ctx.user.imperal_id, "ips": ips, "checks": list(checks),
            "results": results, "created_at": now}
-    if spage.items:
-        await ctx.store.update("wt_ip_scan_results", spage.items[0].id, doc)
+    if spage.data:
+        await ctx.store.update("wt_ip_scan_results", spage.data[0].id, doc)
     else:
         await ctx.store.create("wt_ip_scan_results", doc)
 
@@ -246,7 +253,7 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     return ActionResult.success(
         data={"scanned": len(ips), "checks": list(checks), "issues": issues},
         summary=f"Scanned {len(ips)} IP(s) — {issues} issue(s)",
-        refresh_panels=["__panel__sidebar"],
+        refresh_panels=["sidebar"],
     )
 
 
@@ -260,7 +267,7 @@ async def fn_get_panel_data(ctx) -> ActionResult:
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.items]
+    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.data]
 
     async def _snap(sid):
         if sid:
@@ -277,10 +284,10 @@ async def fn_get_panel_data(ctx) -> ActionResult:
             elif st == "ok":      ok       += 1
 
     return ActionResult.success(data={
-        "monitors":      len(mon_page.items),
-        "domain_groups": len(grp_page.items),
-        "profiles":      len(prf_page.items),
+        "monitors":      len(mon_page.data),
+        "domain_groups": len(grp_page.data),
+        "profiles":      len(prf_page.data),
         "critical":      critical,
         "warning":       warning,
         "ok":            ok,
-    }, summary=f"Web Tools: {len(mon_page.items)} monitor(s)")
+    }, summary=f"Web Tools: {len(mon_page.data)} monitor(s)")

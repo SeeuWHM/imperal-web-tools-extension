@@ -176,7 +176,7 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
         data={"snapshot_id": snap.id, "monitor_id": params.monitor_id,
               "status": overall, "summary": counts, "domains_checked": len(domains)},
         summary=f"Scan complete: {overall.upper()} — {len(domains)} domain(s), {issues} issue(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview", "__panel__detail"],
+        refresh_panels=["sidebar", "overview", "detail"],
     )
 
 

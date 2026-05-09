@@ -12,7 +12,7 @@ sys.path.insert(0, _dir)
 for _m in list(sys.modules):
     if _m in ("app", "handlers", "handlers_diag", "handlers_groups",
               "handlers_profiles", "handlers_monitors", "handlers_scan",
-              "handlers_quick", "handlers_schedule", "skeleton", "panels_ui",
+              "handlers_ui", "handlers_quick", "handlers_schedule", "skeleton", "panels_ui", "panels_ui_base", "panels_ui_items",
               "panels_left", "panels_overview", "panels_detail", "panels_setup",
               "panels"):
         del sys.modules[_m]
@@ -24,7 +24,7 @@ import handlers_groups        # noqa: F401
 import handlers_profiles      # noqa: F401
 import handlers_monitors      # noqa: F401
 import handlers_scan          # noqa: F401
-import handlers_quick         # noqa: F401
+import handlers_ui           # noqa: F401\nimport handlers_quick         # noqa: F401
 import handlers_schedule      # noqa: F401
 import skeleton               # noqa: F401
 import panels_ui              # noqa: F401

@@ -17,13 +17,13 @@ async def on_refresh(ctx) -> ActionResult:
     """Load monitors + their last snapshot statuses for instant AI context."""
     try:
         page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
-        if not page.items:
+        if not page.data:
             return ActionResult.success(data={
                 "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
             }, summary="No monitors")
 
         # Load all snapshots in parallel instead of sequentially
-        snap_ids = [m.data.get("last_snapshot_id") for m in page.items]
+        snap_ids = [m.data.get("last_snapshot_id") for m in page.data]
 
         async def _get_snap(snap_id):
             if snap_id:
@@ -35,7 +35,7 @@ async def on_refresh(ctx) -> ActionResult:
         monitors: dict = {}
         critical = warning = ok = 0
 
-        for m, snap in zip(page.items, snaps):
+        for m, snap in zip(page.data, snaps):
             status   = "unknown"
             summary: dict = {}
             last_run = m.data.get("last_run_at")

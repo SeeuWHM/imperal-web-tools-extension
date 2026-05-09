@@ -65,7 +65,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
     return ActionResult.success(
         data={"profile_id": doc.id, "name": params.name, "checks": deduped},
         summary=f"Created check profile '{params.name}': {', '.join(deduped)}",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -77,7 +77,7 @@ async def fn_list_check_profiles(ctx) -> ActionResult:
     page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10)
     profiles = [
         {"profile_id": d.id, "name": d.data["name"], "checks": d.data["checks"]}
-        for d in page.items
+        for d in page.data
     ]
     return ActionResult.success(
         data={"profiles": profiles, "total": len(profiles)},
@@ -133,7 +133,7 @@ async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionRes
         data={"profile_id": params.profile_id, "name": updated.data["name"],
               "checks": updated.data.get("checks", [])},
         summary=f"Updated profile '{updated.data['name']}': {checks_str}",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -161,12 +161,12 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
         snaps = await ctx.store.query("wt_snapshots",
                                       where={"owner_id": ctx.user.imperal_id, "monitor_id": m.id},
                                       limit=100)
-        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id) for s in snaps.items])
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id) for s in snaps.data])
         await ctx.store.delete("wt_monitors", m.id)
 
-    await asyncio.gather(*[_del_mon(m) for m in mon_page.items])
+    await asyncio.gather(*[_del_mon(m) for m in mon_page.data])
     return ActionResult.success(
         data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )

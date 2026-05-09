@@ -59,8 +59,8 @@ async def _domain_view(ctx) -> ui.UINode:
         ],
     )
     results_section: list = []
-    if spage.items:
-        last  = spage.items[0].data
+    if spage.data:
+        last  = spage.data[0].data
         rdata = last.get("results", {})
         if rdata:
             ts    = last.get("created_at", "")[:16].replace("T", " ")
@@ -96,8 +96,8 @@ async def _ip_view(ctx) -> ui.UINode:
         ],
     )
     results_section: list = []
-    if spage.items:
-        last  = spage.items[0].data
+    if spage.data:
+        last  = spage.data[0].data
         rdata = last.get("results", {})
         if rdata:
             ts    = last.get("created_at", "")[:16].replace("T", " ")

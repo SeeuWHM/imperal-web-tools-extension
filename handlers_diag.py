@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from handlers_ui import blacklist_ui, full_audit_ui
 
 # ─── Email ────────────────────────────────────────────────────────────────── #
 
@@ -77,6 +78,7 @@ async def fn_blacklist_check(ctx, params: BlacklistParams) -> ActionResult:
     return ActionResult.success(
         data={"target": params.target, "type": params.target_type, "result": body["data"]},
         summary=f"Blacklist check for {params.target}",
+        ui=blacklist_ui(params.target, body["data"] or {}),
     )
 
 

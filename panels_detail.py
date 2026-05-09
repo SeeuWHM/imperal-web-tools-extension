@@ -16,8 +16,8 @@ async def build_detail(ctx, monitor_id: str) -> ui.UINode:
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    grp_map = {g.id: g.data["name"] for g in grp_page.items}
-    mon = next((m for m in mon_page.items if m.id == monitor_id), None)
+    grp_map = {g.id: g.data["name"] for g in grp_page.data}
+    mon = next((m for m in mon_page.data if m.id == monitor_id), None)
 
     if not mon:
         return ui.Stack([

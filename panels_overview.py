@@ -25,7 +25,7 @@ async def _build_monitors_view(ctx) -> ui.UINode:
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    grp_map = {g.id: g.data["name"] for g in grp_page.items}
+    grp_map = {g.id: g.data["name"] for g in grp_page.data}
 
     header = ui.Stack([
         ui.Text(content="Domain Health", variant="subheading"),
@@ -37,7 +37,7 @@ async def _build_monitors_view(ctx) -> ui.UINode:
         ),
     ], direction="h", justify="between", sticky=True, wrap=False)
 
-    if not mon_page.items:
+    if not mon_page.data:
         return ui.Stack([
             header,
             ui.Empty(message="No monitors yet — click '+ New Monitor'",
@@ -48,22 +48,22 @@ async def _build_monitors_view(ctx) -> ui.UINode:
         return await ctx.store.get("wt_snapshots", sid) if sid else None
 
     snaps    = await asyncio.gather(*[_snap(m.data.get("last_snapshot_id"))
-                                       for m in mon_page.items])
-    snap_map = {mon_page.items[i].id: snaps[i] for i in range(len(mon_page.items))}
+                                       for m in mon_page.data])
+    snap_map = {mon_page.data[i].id: snaps[i] for i in range(len(mon_page.data))}
 
     n_crit = sum(1 for s in snaps if s and s.data.get("status") == "critical")
     n_warn = sum(1 for s in snaps if s and s.data.get("status") == "warning")
     n_ok   = sum(1 for s in snaps if s and s.data.get("status") == "ok")
 
     stats = ui.Stats([
-        ui.Stat(label="Monitors", value=len(mon_page.items), icon="Monitor"),
+        ui.Stat(label="Monitors", value=len(mon_page.data), icon="Monitor"),
         ui.Stat(label="OK",       value=n_ok,   icon="CheckCircle",  color="green"),
         ui.Stat(label="Warning",  value=n_warn, icon="AlertTriangle", color="yellow"),
         ui.Stat(label="Critical", value=n_crit, icon="XCircle",       color="red"),
     ])
 
     chart_data = []
-    for m in mon_page.items:
+    for m in mon_page.data:
         snap = snap_map.get(m.id)
         if snap:
             s = snap.data.get("summary", {})
@@ -92,7 +92,7 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 
     _order = {"critical": 0, "warning": 1, "ok": 2, "unknown": 3}
     sorted_mons = sorted(
-        mon_page.items,
+        mon_page.data,
         key=lambda m: _order.get(
             (snap_map.get(m.id) and snap_map[m.id].data.get("status")) or "unknown", 3),
     )

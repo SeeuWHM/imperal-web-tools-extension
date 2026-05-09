@@ -66,7 +66,7 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
     return ActionResult.success(
         data={"group_id": doc.id, "name": params.name, "domains": params.domains},
         summary=f"Created domain group '{params.name}' with {len(domain_list)} domain(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -114,7 +114,7 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
     return ActionResult.success(
         data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains},
         summary=f"Updated domain group '{updated.data['name']}' — {len(new_domains)} domain(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -125,7 +125,7 @@ async def fn_list_domain_groups(ctx) -> ActionResult:
     groups = [
         {"group_id": d.id, "name": d.data["name"],
          "domains": d.data["domains"], "domain_count": len(d.data["domains"])}
-        for d in page.items
+        for d in page.data
     ]
     return ActionResult.success(
         data={"groups": groups, "total": len(groups)},
@@ -158,14 +158,14 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
             limit=100,
         )
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.items])
+                                for s in snap_page.data])
         await ctx.store.delete("wt_monitors", m.id)
 
-    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.items])
+    await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
 
     return ActionResult.success(
         data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted group '{name}' and {len(mon_page.data)} monitor(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 

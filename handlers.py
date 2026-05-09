@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from handlers_ui import ssl_ui, dns_ui, http_ui
 
 # ─── DNS ──────────────────────────────────────────────────────────────────── #
 
@@ -36,6 +37,7 @@ async def fn_dns_lookup(ctx, params: DnsLookupParams) -> ActionResult:
     return ActionResult.success(
         data={"domain": params.domain, "type": params.record_type, "records": body["data"]},
         summary=f"DNS {params.record_type} for {params.domain}",
+        ui=dns_ui(params.domain, params.record_type, body["data"]),
     )
 
 
@@ -61,6 +63,7 @@ async def fn_ssl_check(ctx, params: SslCheckParams) -> ActionResult:
     return ActionResult.success(
         data={"domain": params.domain, "port": params.port, **body["data"]},
         summary=f"SSL {'full ' if params.full else ''}check for {params.domain}",
+        ui=ssl_ui(params.domain, body["data"]),
     )
 
 
@@ -131,6 +134,7 @@ async def fn_http_check(ctx, params: HttpCheckParams) -> ActionResult:
     return ActionResult.success(
         data={"domain": params.domain, "check_type": params.check_type, "result": body["data"]},
         summary=f"HTTP {params.check_type} for {params.domain}",
+        ui=http_ui(params.domain, body["data"]) if params.check_type in ("grade","quick","headers","missing") else None,
     )
 
 

@@ -54,7 +54,7 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
         data={"monitor_id": doc.id, "name": params.name,
               "group": grp.data["name"], "profile": prf.data["name"], "interval_hours": interval},
         summary=f"Created domain health monitor '{params.name}' — {grp.data['name']} every {interval}h",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -75,7 +75,7 @@ async def fn_list_monitors(ctx) -> ActionResult:
             "last_run_at":      d.data.get("last_run_at"),
             "last_snapshot_id": d.data.get("last_snapshot_id"),
         }
-        for d in page.items
+        for d in page.data
     ]
     return ActionResult.success(
         data={"monitors": monitors, "total": len(monitors)},
@@ -111,7 +111,7 @@ async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     return ActionResult.success(
         data={"monitor_id": params.monitor_id, "name": name, "interval_hours": interval},
         summary=f"Updated monitor '{name}' — every {interval}h",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -134,14 +134,14 @@ async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
                                       where={"owner_id": ctx.user.imperal_id,
                                              "monitor_id": params.monitor_id},
                                       limit=200)
-    if snap_page.items:
+    if snap_page.data:
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.items])
+                                for s in snap_page.data])
     await ctx.store.delete("wt_monitors", params.monitor_id)
     return ActionResult.success(
         data={"monitor_id": params.monitor_id},
         summary=f"Deleted domain health monitor '{name}'",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -216,5 +216,5 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
         data={"monitor_id": doc.id, "name": name,
               "domains": len(domains), "checks": checks, "interval_hours": interval},
         summary=f"Created monitor '{name}' — {len(domains)} domain(s), every {interval}h",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
