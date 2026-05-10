@@ -92,6 +92,7 @@ class RunScanParams(BaseModel):
 
 
 @chat.function("run_scan", action_type="write", event="scan.completed",
+               effects=["create:scan_result"],
                description="Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.")
 async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
     try:

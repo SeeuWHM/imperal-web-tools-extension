@@ -28,6 +28,7 @@ class EmptyParams(BaseModel):
 
 
 @chat.function("create_monitor", action_type="write", event="monitor.created",
+               effects=["create:monitor"],
                description=(
                    f"Create a domain health monitor — saves a wt_monitors record that runs "
                    f"DNS/SSL/HTTP/email checks on a domain group at a recurring interval. "
@@ -99,6 +100,7 @@ class UpdateMonitorParams(BaseModel):
 
 
 @chat.function("update_monitor", action_type="write", event="monitor.updated",
+               effects=["update:monitor"],
                description="Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
@@ -129,6 +131,7 @@ class DeleteMonitorParams(BaseModel):
 
 
 @chat.function("delete_monitor", action_type="destructive", event="monitor.deleted",
+               effects=["delete:monitor"],
                description="Delete a monitor. The domain group and check profile are preserved and can be reused.")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
@@ -173,6 +176,7 @@ class CreateMonitorFullParams(BaseModel):
 
 
 @chat.function("create_monitor_full", action_type="write", event="monitor.created",
+               effects=["create:monitor", "create:domain_group", "create:check_profile"],
                description="Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor."
 )
 async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:

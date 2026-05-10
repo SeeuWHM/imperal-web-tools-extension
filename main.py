@@ -24,7 +24,8 @@ import handlers_groups        # noqa: F401
 import handlers_profiles      # noqa: F401
 import handlers_monitors      # noqa: F401
 import handlers_scan          # noqa: F401
-import handlers_ui           # noqa: F401\nimport handlers_quick         # noqa: F401
+import handlers_ui             # noqa: F401
+import handlers_quick          # noqa: F401
 import handlers_schedule      # noqa: F401
 import skeleton               # noqa: F401
 import panels_ui              # noqa: F401

@@ -41,6 +41,7 @@ class EmptyParams(BaseModel):
 
 
 @chat.function("create_domain_group", action_type="write", event="group.created",
+               effects=["create:domain_group"],
                description=f"Create a named group of domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each). Required before creating a monitor with create_monitor.")
 async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult:
     # Panel form sends domains_csv (plain text); chat sends domains (list)
@@ -87,6 +88,7 @@ class UpdateGroupParams(BaseModel):
 
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
+               effects=["update:domain_group"],
                description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
@@ -145,6 +147,7 @@ class DeleteGroupParams(BaseModel):
 
 
 @chat.function("delete_domain_group", action_type="destructive", event="group.deleted",
+               effects=["delete:domain_group"],
                description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)

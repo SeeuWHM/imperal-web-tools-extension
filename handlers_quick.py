@@ -31,6 +31,7 @@ class EmptyParams(BaseModel):
 
 
 @chat.function("quick_check", action_type="write", event="quick.completed",
+               effects=["create:scan_result"],
                description="Single-domain quick check from the panel — choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.")
 async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     d = params.domain.strip()
@@ -116,6 +117,7 @@ class ScanToolParams(BaseModel):
 
 
 @chat.function("run_scan_tool", action_type="write", event="scan.tool",
+               effects=["create:scan_result"],
                description="Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel. Use when user provides a list of domains to check simultaneously.")
 async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     domains = list(dict.fromkeys(
@@ -195,6 +197,7 @@ def _ip_status(check: str, data: dict) -> str:
 
 
 @chat.function("run_ip_scan", action_type="write", event="scan.tool",
+               effects=["create:scan_result"],
                description="Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]

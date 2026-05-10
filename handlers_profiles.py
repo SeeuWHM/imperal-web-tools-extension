@@ -41,6 +41,7 @@ class EmptyParams(BaseModel):
 
 
 @chat.function("create_check_profile", action_type="write", event="profile.created",
+               effects=["create:check_profile"],
                description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each).")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
     if params.panel_mode:
@@ -111,6 +112,7 @@ class UpdateProfileParams(BaseModel):
 
 
 @chat.function("update_check_profile", action_type="write", event="profile.updated",
+               effects=["update:check_profile"],
                description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
@@ -150,6 +152,7 @@ class DeleteProfileParams(BaseModel):
 
 
 @chat.function("delete_check_profile", action_type="destructive", event="profile.deleted",
+               effects=["delete:check_profile"],
                description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
