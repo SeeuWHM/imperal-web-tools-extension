@@ -1,15 +1,32 @@
 {
+  "manifest_schema_version": 3,
+  "sdk_version": "4.1.5",
   "app_id": "web-tools",
   "version": "1.4.0",
-  "capabilities": ["store:read", "store:write"],
+  "name": "Web Tools",
+  "description": "Domain health monitoring \u2014 DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
+  "icon": "icon.svg",
+  "actions_explicit": true,
+  "capabilities": [
+    "store:read",
+    "store:write"
+  ],
   "tools": [
     {
       "name": "tool_web_tools_chat",
-      "description": "Web diagnostics — DNS, SSL, WHOIS, HTTP headers grade, email SPF DMARC DKIM, blacklist 30 DNSBL, port scan, SMTP test, geo probe EU/US/SG/MD, full parallel domain audit, domain health monitors with groups and check profiles",
-      "scopes": ["*"],
+      "description": "Web diagnostics \u2014 DNS, SSL, WHOIS, HTTP headers grade, email SPF DMARC DKIM, blacklist 30 DNSBL, port scan, SMTP test, geo probe EU/US/SG/MD, full parallel domain audit, domain health monitors with groups and check profiles",
+      "scopes": [
+        "*"
+      ],
       "parameters": {
-        "message": {"type": "string", "required": false},
-        "kwargs":  {"type": "string", "required": true}
+        "message": {
+          "type": "string",
+          "required": false
+        },
+        "kwargs": {
+          "type": "string",
+          "required": true
+        }
       }
     },
     {
@@ -19,27 +36,438 @@
       "parameters": {}
     },
     {
+      "name": "dns_lookup",
+      "description": "DNS record lookup \u2014 A/AAAA/MX/NS/TXT/CNAME/SRV/DNSSEC, global propagation across 15+ resolvers, direct authoritative NS query. Use for any DNS question.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "ssl_check",
+      "description": "SSL/TLS certificate \u2014 expiry date, days remaining, issuer, grade A-F. Full mode adds chain, SANs, fingerprint and TLS version support.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "whois_lookup",
+      "description": "WHOIS for domain (registrar, dates, nameservers, status) or IP (ASN, org, country). Use detail= for targeted sections: quick/full/dates/registrar/availability.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "http_check",
+      "description": "HTTP security headers grade A+ to F (HSTS/CSP/X-Frame-Options/X-Content-Type-Options). Shows missing headers with fix tips, redirect chain, response time.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "network_check",
+      "description": "Network diagnostics \u2014 ICMP ping (RTT/loss), MTR traceroute per-hop, reverse DNS (PTR), IP geolocation + ASN, ASN WHOIS prefix list.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "seo_check",
+      "description": "SEO check \u2014 meta title/description length and issues, robots.txt rules, sitemap.xml validation, Google indexing status. Use check_type to target a specific area.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "email_check",
+      "description": "Email authentication \u2014 SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "blacklist_check",
+      "description": "Spam blacklist check \u2014 IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL. Returns verdict: clean / listed / critical.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "port_scan",
+      "description": "TCP port check \u2014 single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "smtp_test",
+      "description": "SMTP server test \u2014 connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner. Use to diagnose email delivery problems.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "geo_check",
+      "description": "Multi-region probe from EU/US/SG/MD \u2014 DNS resolution + anycast mismatch, ping latency, HTTP availability, SSL validity, MTR traceroute, independently per region.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "domain_full_check",
+      "description": "Complete domain audit \u2014 runs DNS+SSL+WHOIS+HTTP+email+blacklist+geo in parallel in one call. Use when user asks for full site health, domain report or audit.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_domain_group",
+      "description": "Create a named group of domains for monitoring (max 5 groups, max 20 domains each). Required before creating a monitor with create_monitor",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:domain_group"
+      ],
+      "event": "group.created",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_domain_group",
+      "description": "Add, remove or replace domains in an existing group, or rename it (max 20 domains). Use list_domain_groups first to get the group_id",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:domain_group"
+      ],
+      "event": "group.updated",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_domain_groups",
+      "description": "Show all domain groups \u2014 names, domain lists and domain count. Call before create_monitor to pick the right group_id.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_domain_group",
+      "description": "Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone \u2014 confirm group_id with list_domain_groups first.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:domain_group"
+      ],
+      "event": "group.deleted",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_monitor",
+      "description": "Create a domain health monitor \u2014 saves a wt_monitors record that runs DNS/SSL/HTTP/email checks on a domain group at a recurring interval. Requires an existing domain group (group_id) and check profile (profile_id). NOT an automation rule. Max 5 monitors",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:monitor"
+      ],
+      "event": "monitor.created",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_monitors",
+      "description": "Show all domain health monitors \u2014 name, group, check profile, scan interval and last scan time. Use to find monitor_id for run_scan or update_monitor.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_monitor",
+      "description": "Rename a monitor or change its scan interval. Does not change domains or checks \u2014 use update_domain_group or update_check_profile for that.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:monitor"
+      ],
+      "event": "monitor.updated",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_monitor",
+      "description": "Delete a monitor. The domain group and check profile are preserved and can be reused.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:monitor"
+      ],
+      "event": "monitor.deleted",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_monitor_full",
+      "description": "Create a complete health monitor in one step \u2014 name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:monitor",
+        "create:domain_group",
+        "create:check_profile"
+      ],
+      "event": "monitor.created",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_check_profile",
+      "description": "Create a check profile \u2014 defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max 5 profiles, max 5 checks each)",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:check_profile"
+      ],
+      "event": "profile.created",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_check_profiles",
+      "description": "Show all check profiles \u2014 names and enabled check types. Call before create_monitor to pick the right profile_id.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_check_profile",
+      "description": "Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:check_profile"
+      ],
+      "event": "profile.updated",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_check_profile",
+      "description": "Permanently delete a check profile and all monitors that use it. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:check_profile"
+      ],
+      "event": "profile.deleted",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_scan",
+      "description": "Trigger an immediate scan for a monitor \u2014 checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "event": "scan.completed",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_scan_results",
+      "description": "Get the latest scan snapshot for a monitor \u2014 per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "quick_check",
+      "description": "Single-domain quick check from the panel \u2014 choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "event": "quick.completed",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_scan_tool",
+      "description": "Bulk domain scan (max 10) with chosen checks via toggles \u2014 results appear in the left panel. Use when user provides a list of domains to check simultaneously.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "event": "scan.tool",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_ip_scan",
+      "description": "Bulk IP scan (max 5) \u2014 geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "event": "scan.tool",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_panel_data",
+      "description": "Panel data helper \u2014 returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.",
+      "action_type": "read",
+      "chain_callable": false,
+      "effects": [],
+      "event": "",
+      "params_schema": {},
+      "return_schema": {},
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
       "name": "__panel__sidebar",
       "description": "Panel left: Domain Scan and IP Scan (tab buttons). TagInput domains, toggle checks, expandable results per domain/IP with rich detail.",
       "scopes": [],
       "parameters": {
-        "params": {"type": "string", "required": true}
+        "params": {
+          "type": "string",
+          "required": true
+        }
       }
     },
     {
       "name": "__panel__overview",
-      "description": "Panel right: monitors — stats, bar chart, sorted cards. view=monitors (default) or view=new (New Monitor form with toggles).",
+      "description": "Panel right: monitors \u2014 stats, bar chart, sorted cards. view=monitors (default) or view=new (New Monitor form with toggles).",
       "scopes": [],
       "parameters": {
-        "params": {"type": "string", "required": true}
+        "params": {
+          "type": "string",
+          "required": true
+        }
       }
     },
     {
       "name": "__panel__detail",
-      "description": "Panel right: monitor detail — pie chart, expandable domain list (per-check KV), Settings accordion.",
+      "description": "Panel right: monitor detail \u2014 pie chart, expandable domain list (per-check KV), Settings accordion.",
       "scopes": [],
       "parameters": {
-        "params": {"type": "string", "required": true}
+        "params": {
+          "type": "string",
+          "required": true
+        }
       }
     }
   ],
@@ -51,5 +479,8 @@
       "description": "Hourly: runs overdue domain health monitors across all users"
     }
   ],
-  "required_scopes": ["store:read", "store:write"]
+  "required_scopes": [
+    "store:read",
+    "store:write"
+  ]
 }

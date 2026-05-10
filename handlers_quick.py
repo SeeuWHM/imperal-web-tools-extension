@@ -292,11 +292,7 @@ async def fn_get_panel_data(ctx, params: EmptyParams) -> ActionResult:
             elif st == "warning": warning  += 1
             elif st == "ok":      ok       += 1
 
-    return ActionResult.success(data={
-        "monitors":      len(mon_page.data),
-        "domain_groups": len(grp_page.data),
-        "profiles":      len(prf_page.data),
-        "critical":      critical,
-        "warning":       warning,
-        "ok":            ok,
-    }, summary=f"Web Tools: {len(mon_page.data)} monitor(s)")
+    return ActionResult.success(
+        data={"monitors": len(mon_page.data), "domain_groups": len(grp_page.data),
+              "profiles": len(prf_page.data), "critical": critical, "warning": warning, "ok": ok},
+        summary=f"Web Tools: {len(mon_page.data)} monitor(s)")
