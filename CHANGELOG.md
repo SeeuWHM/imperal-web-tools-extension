@@ -1,15 +1,62 @@
 # Changelog
 
-## [Unreleased] — 2026-04-30
+## [1.4.0-patch3] — 2026-05-10
 
 ### Fixed
-- **SDK 3.x migration** — `ctx.user.id` → `ctx.user.imperal_id` across all 12 files (`AttributeError` on SDK 3.0+ without this)
+- **`main.py:27`** — literal `\n` embedded in Python comment caused `handlers_quick` to never import; `quick_check`, `run_scan_tool`, `run_ip_scan`, `get_panel_data` were unregistered — Scan Tool left panel was completely broken (all form actions returned "tool not found"). Split into two separate import lines.
+
+### Changed
+- **`effects=`** added to all write/destructive `@chat.function` handlers (V20 compliance — becomes ERROR in SDK v5.0.0):
+  - `handlers_groups.py`: `create_domain_group` → `["create:domain_group"]`, `update_domain_group` → `["update:domain_group"]`, `delete_domain_group` → `["delete:domain_group"]`
+  - `handlers_monitors.py`: `create_monitor` → `["create:monitor"]`, `update_monitor` → `["update:monitor"]`, `delete_monitor` → `["delete:monitor"]`, `create_monitor_full` → `["create:monitor","create:domain_group","create:check_profile"]`
+  - `handlers_profiles.py`: `create_check_profile` → `["create:check_profile"]`, `update_check_profile` → `["update:check_profile"]`, `delete_check_profile` → `["delete:check_profile"]`
+  - `handlers_scan.py`: `run_scan` → `["create:scan_result"]`
+  - `handlers_quick.py`: `quick_check`, `run_scan_tool`, `run_ip_scan` → `["create:scan_result"]`
+- **`imperal.json`** — upgraded to manifest_schema_version=3; all 31 `@chat.function` handlers emitted as typed tool entries with `action_type`, `chain_callable`, `effects`, `event`; resolves "Manifest matches code" portal warning
+- **`handlers_quick.py`** — compacted `get_panel_data` return dict (302L → 298L)
+
+---
+
+## [1.4.0-patch2] — 2026-05-09
+
+### Fixed
+- **`page.items` → `page.data`** everywhere — `Page` class has `.data`, not `.items`; all store query paths were silently failing (empty results on update/list operations)
+- **`refresh_panels` format** — removed `__panel__` prefix; correct format is bare panel IDs `["sidebar","overview"]`, not `["__panel__sidebar",...]`; panels were not refreshing after any write operation
+
+### Added
+- **`handlers_ui.py`** — inline UI builders: `ssl_ui`, `dns_ui`, `blacklist_ui`, `http_ui`, `full_audit_ui` used in `ActionResult.ui` for rich inline chat display
+- **`ActionResult.ui`** — DNS, SSL, HTTP, Blacklist chat functions now return formatted inline UI in chat alongside the plain summary
+- **`ctx.progress`** in `fn_run_scan_tool` — progress updates at each domain + 0%/90%/100% milestones
+
+### Changed
+- **`panels_ui.py`** (384L) split into `panels_ui_base.py` (143L) + `panels_ui_items.py` (248L); `panels_ui.py` is now a thin re-export shim (9L)
+
+---
+
+## [1.4.0-patch1] — 2026-05-09
+
+### Added
+- **V14**: `Extension(description=...)` — domain health monitoring description ≥40 chars
+- **V15**: `Extension(display_name='Web Tools')` added
+- **V17**: `EmptyParams` class added to `handlers_groups.py`, `handlers_profiles.py`, `handlers_monitors.py`, `handlers_quick.py` — all parameterless `@chat.function` handlers now comply
+- **V21**: `icon.svg` created (globe icon, valid SVG with viewBox); `Extension(icon='icon.svg')` set
+- **`actions_explicit=True`** added to `Extension` per federal contract
+
+### Changed
+- All 26 `@chat.function` descriptions rewritten — unambiguous, distinguishes similar functions (run_scan vs run_scan_tool vs quick_check, create_monitor vs create_monitor_full), cross-references list_* functions for ID lookup, warns about cascade deletes
+
+---
+
+## [1.4.0] — 2026-04-30 (first git push)
+
+### Fixed (SDK 3.x migration)
+- **`ctx.user.id` → `ctx.user.imperal_id`** across all 12 files (`AttributeError` on SDK 3.0+ without this)
 - **`app.py`** — removed deprecated `model=` parameter from `ChatExtension` (removed in SDK v1.6.0)
 - **`skeleton.py`** — `@ext.tool("skeleton_refresh_web_tools", **kwargs)` → `@ext.skeleton("web_tools", ttl=300)` (canonical SDK decorator)
-- **`handlers_quick.py`** `get_panel_data` — skeleton data key corrected: `"skeleton_refresh_web_tools"` → `"web_tools"` (matches `@ext.skeleton("web_tools", ...)`)
+- **`handlers_quick.py`** `get_panel_data` — skeleton key corrected: `"skeleton_refresh_web_tools"` → `"web_tools"`
 - **`imperal.json`** — removed `kwargs` from skeleton tool parameters entry (`{}` is correct for skeleton tools)
-- **`GeoCheckParams`** — added `model_validator(mode="before")` accepting `domains`/`domain`/`host` → `target` alias (LLM compat: prevents `VALIDATION_MISSING_FIELD` when LLM passes `domains=['...']` instead of `target='...'`)
-- **`NetworkCheckParams`** — same alias validator as `GeoCheckParams`
+- **`GeoCheckParams`** — `model_validator(mode="before")` accepting `domains`/`domain`/`host` → `target` alias (LLM compat)
+- **`NetworkCheckParams`** — same alias validator
 
 ### Other
 - Git repository initialized and connected to `github-web-tools:SeeuWHM/imperal-web-tools-extension.git`
