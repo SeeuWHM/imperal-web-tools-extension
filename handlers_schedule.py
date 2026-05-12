@@ -1,8 +1,9 @@
 """web-tools · Scheduled monitor runner — hourly cron, runs overdue monitors.
 
-Architecture: @ext.schedule runs under __system__ context. Uses ctx.store.list_users()
-to iterate all users that have monitors, then ctx.as_user(uid) to get a scoped Context
-for per-user store operations. Pattern: SDK 1.5.23+ canonical fan-out (Rule 20).
+Architecture: @ext.schedule runs under __system__ context. Uses ctx.store.query_all()
+to fetch all monitors across all users in a single HTTP call, groups by user_id, then
+fans out with ctx.as_user(uid) for per-user scoped operations.
+Pattern: SDK 4.x canonical — query_all + as_user (avoids list_users N+1).
 """
 from __future__ import annotations
 
@@ -23,26 +24,34 @@ async def run_scheduled_monitors(ctx) -> None:
     """Hourly: fan-out across all users, scan overdue monitors."""
     now = datetime.datetime.now(datetime.timezone.utc)
     run_count = 0
+
     try:
-        async for user_id in ctx.store.list_users("wt_monitors"):
-            user_ctx = ctx.as_user(user_id)
-            try:
-                page = await user_ctx.store.query("wt_monitors",
-                                                  where={"enabled": True}, limit=100)
-                for mon in page.data:
-                    try:
-                        ran = await _maybe_run(user_ctx, mon, now)
-                        if ran:
-                            run_count += 1
-                    except Exception as exc:
-                        log.warning(
-                            f"wt_schedule: monitor {mon.id} "
-                            f"({mon.data.get('name')}) failed: {exc}"
-                        )
-            except Exception as exc:
-                log.warning(f"wt_schedule: user {user_id} failed: {exc}")
+        all_monitors = await ctx.store.query_all("wt_monitors", limit=1000)
     except Exception as exc:
-        log.error(f"wt_schedule: runner failed: {exc}")
+        log.error(f"wt_schedule: query_all failed: {exc}")
+        return
+
+    # Group enabled monitors by owner
+    by_user: dict[str, list] = {}
+    for mon in all_monitors:
+        if not mon.data.get("enabled"):
+            continue
+        uid = mon.user_id
+        if uid and uid != "__system__":
+            by_user.setdefault(uid, []).append(mon)
+
+    for user_id, monitors in by_user.items():
+        user_ctx = ctx.as_user(user_id)
+        for mon in monitors:
+            try:
+                ran = await _maybe_run(user_ctx, mon, now)
+                if ran:
+                    run_count += 1
+            except Exception as exc:
+                log.warning(
+                    f"wt_schedule: monitor {mon.id} "
+                    f"({mon.data.get('name')}) failed: {exc}"
+                )
 
     if run_count:
         log.info(f"wt_schedule: ran {run_count} monitor(s)")
@@ -62,7 +71,7 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
                 last_run_dt = last_run_dt.replace(tzinfo=datetime.timezone.utc)
             elapsed_h = (now - last_run_dt).total_seconds() / 3600
         except (ValueError, TypeError):
-            elapsed_h = interval_h + 1  # malformed or incompatible timestamp → run it
+            elapsed_h = interval_h + 1
         if elapsed_h < interval_h:
             return False
 
