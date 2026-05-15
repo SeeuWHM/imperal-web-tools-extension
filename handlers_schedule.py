@@ -1,9 +1,8 @@
 """web-tools · Scheduled monitor runner — hourly cron, runs overdue monitors.
 
-Architecture: @ext.schedule runs under __system__ context. Uses ctx.store.query_all()
-to fetch all monitors across all users in a single HTTP call, groups by user_id, then
-fans out with ctx.as_user(uid) for per-user scoped operations.
-Pattern: SDK 4.x canonical — query_all + as_user (avoids list_users N+1).
+Architecture: @ext.schedule runs under __system__ context. Uses ctx.store.list_users()
+to iterate all users who have monitors, then ctx.as_user(uid) + ctx.store.query()
+for per-user scoped operations (SDK 5.0.0 canonical fan-out pattern).
 """
 from __future__ import annotations
 
@@ -26,32 +25,24 @@ async def run_scheduled_monitors(ctx) -> None:
     run_count = 0
 
     try:
-        all_monitors = await ctx.store.query_all("wt_monitors", limit=1000)
+        async for user_id in ctx.store.list_users("wt_monitors"):
+            user_ctx = ctx.as_user(user_id)
+            page = await user_ctx.store.query("wt_monitors", limit=100)
+            for mon in page.data:
+                if not mon.data.get("enabled"):
+                    continue
+                try:
+                    ran = await _maybe_run(user_ctx, mon, now)
+                    if ran:
+                        run_count += 1
+                except Exception as exc:
+                    log.warning(
+                        f"wt_schedule: monitor {mon.id} "
+                        f"({mon.data.get('name')}) failed: {exc}"
+                    )
     except Exception as exc:
-        log.error(f"wt_schedule: query_all failed: {exc}")
+        log.error(f"wt_schedule: failed: {exc}")
         return
-
-    # Group enabled monitors by owner
-    by_user: dict[str, list] = {}
-    for mon in all_monitors:
-        if not mon.data.get("enabled"):
-            continue
-        uid = mon.user_id
-        if uid and uid != "__system__":
-            by_user.setdefault(uid, []).append(mon)
-
-    for user_id, monitors in by_user.items():
-        user_ctx = ctx.as_user(user_id)
-        for mon in monitors:
-            try:
-                ran = await _maybe_run(user_ctx, mon, now)
-                if ran:
-                    run_count += 1
-            except Exception as exc:
-                log.warning(
-                    f"wt_schedule: monitor {mon.id} "
-                    f"({mon.data.get('name')}) failed: {exc}"
-                )
 
     if run_count:
         log.info(f"wt_schedule: ran {run_count} monitor(s)")
