@@ -52,8 +52,15 @@ async def run_scheduled_monitors(ctx) -> None:
 
 async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
     """Run scan if monitor is overdue. ctx is already scoped to the monitor owner."""
-    last_run = mon.data.get("last_run_at")
-    interval_h = mon.data.get("interval_hours", 24)
+    # Re-read from store — avoids the stale-data race where a manual scan ran
+    # after run_scheduled_monitors queried all monitors at startup, causing a
+    # duplicate scan because the in-memory last_run_at hadn't been updated yet.
+    fresh = await ctx.store.get("wt_monitors", mon.id)
+    if not fresh or not fresh.data.get("enabled"):
+        return False
+
+    last_run   = fresh.data.get("last_run_at")
+    interval_h = fresh.data.get("interval_hours", 24)
 
     if last_run:
         try:
@@ -66,16 +73,27 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
         if elapsed_h < interval_h:
             return False
 
-    grp = await ctx.store.get("wt_groups",   mon.data["group_id"])
-    prf = await ctx.store.get("wt_profiles", mon.data["profile_id"])
-    if not grp or not prf:
-        log.debug(f"wt_schedule: monitor {mon.id} skipped — group/profile missing")
+    group_id   = fresh.data.get("group_id", "")
+    profile_id = fresh.data.get("profile_id", "")
+    if not group_id or not profile_id:
+        log.warning(f"wt_schedule: monitor {mon.id} missing group_id or profile_id")
         return False
 
-    domains: list[str] = grp.data["domains"]
-    checks:  list[str] = prf.data["checks"]
-    run_at   = now.isoformat()
-    owner_id = mon.data.get("owner_id", "")
+    grp = await ctx.store.get("wt_groups",   group_id)
+    prf = await ctx.store.get("wt_profiles", profile_id)
+    if not grp or not prf:
+        log.debug(f"wt_schedule: monitor {mon.id} skipped — group/profile deleted")
+        return False
+
+    domains    = grp.data.get("domains", [])
+    checks     = prf.data.get("checks",  [])
+    old_snap_id = fresh.data.get("last_snapshot_id")
+    run_at     = now.isoformat()
+    owner_id   = fresh.data.get("owner_id", "")
+
+    if not domains or not checks:
+        log.debug(f"wt_schedule: monitor {mon.id} skipped — empty domains or checks")
+        return False
 
     dom_sem = asyncio.Semaphore(3)
 
@@ -119,13 +137,11 @@ async def _maybe_run(ctx, mon, now: datetime.datetime) -> bool:
         "last_run_at":      run_at,
         "last_snapshot_id": snap.id,
     })
-
-    old_snap_id = mon.data.get("last_snapshot_id")
     if old_snap_id and old_snap_id != snap.id:
         try:
             await ctx.store.delete("wt_snapshots", old_snap_id)
         except Exception:
             pass
 
-    log.info(f"wt_schedule: '{mon.data.get('name')}' → {overall} ({len(domains)} domain(s))")
+    log.info(f"wt_schedule: '{fresh.data.get('name')}' → {overall} ({len(domains)} domain(s))")
     return True

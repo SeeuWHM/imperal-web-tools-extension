@@ -106,13 +106,13 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
     if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
 
-    grp = await ctx.store.get("wt_groups", mon.data["group_id"])
-    prf = await ctx.store.get("wt_profiles", mon.data["profile_id"])
+    grp = await ctx.store.get("wt_groups",   mon.data.get("group_id", ""))
+    prf = await ctx.store.get("wt_profiles", mon.data.get("profile_id", ""))
     if not grp or not prf:
         return ActionResult.error("Domain group or check profile was deleted.", retryable=False)
 
-    domains: list[str] = grp.data["domains"]
-    checks:  list[str] = prf.data["checks"]
+    domains: list[str] = grp.data.get("domains", [])
+    checks:  list[str] = prf.data.get("checks",  [])
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     dom_sem = asyncio.Semaphore(3)
