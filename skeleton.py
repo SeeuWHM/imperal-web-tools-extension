@@ -4,21 +4,23 @@ from __future__ import annotations
 import asyncio
 
 from app import ext
+from imperal_sdk import ActionResult
 
 
-@ext.tool(
-    "skeleton_refresh_web_tools",
+@ext.skeleton(
+    "web_tools",
+    ttl=300,
     description="Refresh web-tools monitor statuses from last scan snapshots. "
                 "Provides instant Webbee context: how many monitors are critical/warning.",
 )
-async def on_refresh(ctx, **kwargs) -> dict:
+async def on_refresh(ctx) -> ActionResult:
     """Load monitors + their last snapshot statuses for instant AI context."""
     try:
-        page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10)
+        page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
         if not page.data:
-            return {"response": {
+            return ActionResult.success(data={
                 "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
-            }}
+            }, summary="No monitors")
 
         # Load all snapshots in parallel instead of sequentially
         snap_ids = [m.data.get("last_snapshot_id") for m in page.data]
@@ -57,15 +59,15 @@ async def on_refresh(ctx, **kwargs) -> dict:
                 "summary":        summary,
             }
 
-        return {"response": {
+        return ActionResult.success(data={
             "monitors": monitors,
             "total":    len(monitors),
             "critical": critical,
             "warning":  warning,
             "ok":       ok,
-        }}
+        }, summary=f"{len(monitors)} monitor(s): {critical} critical, {warning} warning, {ok} ok")
 
     except Exception as exc:
-        return {"response": {
+        return ActionResult.success(data={
             "error": str(exc), "monitors": {}, "total": 0, "critical": 0, "warning": 0, "ok": 0,
-        }}
+        }, summary="Skeleton refresh failed")

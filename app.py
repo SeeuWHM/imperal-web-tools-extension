@@ -11,7 +11,7 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.4.2",
+    version="1.4.3",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
@@ -23,8 +23,8 @@ ext = Extension(
     capabilities=["store:read", "store:write"],
 )
 
-# SDK 5.0.0 auto-registers a "secrets" panel on slot="right" in Extension.__init__.
-# web-tools doesn't use ctx.secrets — move it away so Monitors is the sole right panel.
+# Defensive guard: if the SDK ever auto-registers secrets in __init__, override its slot.
+# The authoritative fix is @ext.panel("secrets", slot="overlay") in panels.py.
 try:
     if "secrets" in ext._panels:
         ext._panels["secrets"]["slot"] = "overlay"

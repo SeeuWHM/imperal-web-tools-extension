@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from imperal_sdk.chat import TaskCancelled
 from handlers_scan import _run_domain_checks
 
 
@@ -23,15 +24,22 @@ class QuickCheckParams(BaseModel):
     )
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("quick_check", action_type="write", event="quick.completed",
-               description="Quick domain check from panel — DNS/SSL/HTTP/email/blacklist/geo/ports. Result stored and shown in right panel.")
+               effects=["create:scan_result"],
+               description="Single-domain quick check from the panel — choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.")
 async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
     d = params.domain.strip()
     if not d:
         return ActionResult.error("Enter a domain or IP address.", retryable=False)
 
     base = WEB_TOOLS_URL
-    now  = datetime.datetime.utcnow().isoformat()
+    now  = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     if params.preset == "full":
         _urls = {
@@ -79,8 +87,8 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         summary = f"{params.preset.upper()} check for {d} — done"
 
     qpage = await ctx.store.query("wt_quick_results",
-                                  where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, **result_data}
+                                  where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, **result_data}
     if qpage.data:
         await ctx.store.update("wt_quick_results", qpage.data[0].id, doc)
     else:
@@ -88,7 +96,7 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
 
     return ActionResult.success(
         data=result_data, summary=summary,
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -109,7 +117,8 @@ class ScanToolParams(BaseModel):
 
 
 @chat.function("run_scan_tool", action_type="write", event="scan.tool",
-               description="Scan one or more domains/IPs on demand — select checks via toggles. Results shown in the left panel.")
+               effects=["create:scan_result"],
+               description="Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel. Use when user provides a list of domains to check simultaneously.")
 async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     domains = list(dict.fromkeys(
         d.strip() for d in (params.domains or []) if d.strip()
@@ -125,18 +134,24 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     if not checks:
         return ActionResult.error("Enable at least one check.", retryable=False)
 
-    dom_sem = asyncio.Semaphore(3)
+    await ctx.progress(percent=0, message=f"Starting scan: {len(domains)} domain(s), {len(checks)} check(s)…")
+    dom_sem  = asyncio.Semaphore(3)
+    done     = [0]
 
     async def _scan(d: str) -> tuple[str, dict]:
         async with dom_sem:
-            return d, await _run_domain_checks(ctx, d, checks)
+            result = await _run_domain_checks(ctx, d, checks)
+            done[0] += 1
+            pct = int(done[0] / len(domains) * 90)
+            await ctx.progress(percent=pct, message=f"Scanned {done[0]}/{len(domains)}: {d}")
+            return d, result
 
     results = dict(await asyncio.gather(*[_scan(d) for d in domains]))
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     spage = await ctx.store.query("wt_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, "domains": domains,
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, "domains": domains,
            "checks": checks, "results": results, "created_at": now}
     if spage.data:
         await ctx.store.update("wt_scan_results", spage.data[0].id, doc)
@@ -148,7 +163,7 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
     return ActionResult.success(
         data={"scanned": len(domains), "checks": checks, "issues": issues},
         summary=f"Scanned {len(domains)} domain(s) — {issues} issue(s)",
-        refresh_panels=["__panel__sidebar"],
+        refresh_panels=["sidebar"],
     )
 
 
@@ -182,7 +197,8 @@ def _ip_status(check: str, data: dict) -> str:
 
 
 @chat.function("run_ip_scan", action_type="write", event="scan.tool",
-               description="Scan IP addresses — IP lookup (geo/ASN), blacklist (29 DNSBL), reverse DNS (PTR), port scan, geo ping from 4 regions.")
+               effects=["create:scan_result"],
+               description="Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
     if not ips:
@@ -230,11 +246,11 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
             return ip, outcome
 
     results = dict(await asyncio.gather(*[_scan(ip) for ip in ips]))
-    now     = datetime.datetime.utcnow().isoformat()
+    now     = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     spage = await ctx.store.query("wt_ip_scan_results",
-                                   where={"owner_id": ctx.user.id}, limit=1)
-    doc = {"owner_id": ctx.user.id, "ips": ips, "checks": list(checks),
+                                   where={"owner_id": ctx.user.imperal_id}, limit=1)
+    doc = {"owner_id": ctx.user.imperal_id, "ips": ips, "checks": list(checks),
            "results": results, "created_at": now}
     if spage.data:
         await ctx.store.update("wt_ip_scan_results", spage.data[0].id, doc)
@@ -246,26 +262,37 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     return ActionResult.success(
         data={"scanned": len(ips), "checks": list(checks), "issues": issues},
         summary=f"Scanned {len(ips)} IP(s) — {issues} issue(s)",
-        refresh_panels=["__panel__sidebar"],
+        refresh_panels=["sidebar"],
     )
 
 
 # ─── Panel Data (chat LLM context) ────────────────────────────────────────── #
 
 @chat.function("get_panel_data", action_type="read",
-               description="Panel summary — monitors, groups, profiles counts and statuses")
-async def fn_get_panel_data(ctx) -> ActionResult:
+               description="Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.")
+async def fn_get_panel_data(ctx, params: EmptyParams) -> ActionResult:
     mon_page, grp_page, prf_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
-    skel = getattr(ctx, "skeleton_data", {}).get("skeleton_refresh_web_tools", {})
-    return ActionResult.success(data={
-        "monitors":      len(mon_page.data),
-        "domain_groups": len(grp_page.data),
-        "profiles":      len(prf_page.data),
-        "critical":      skel.get("critical", 0),
-        "warning":       skel.get("warning",  0),
-        "ok":            skel.get("ok",        0),
-    }, summary=f"Web Tools: {len(mon_page.data)} monitor(s)")
+    snap_ids = [m.data.get("last_snapshot_id") for m in mon_page.data]
+
+    async def _snap(sid):
+        if sid:
+            return await ctx.store.get("wt_snapshots", sid)
+        return None
+
+    snaps = await asyncio.gather(*[_snap(sid) for sid in snap_ids])
+    critical = warning = ok = 0
+    for s in snaps:
+        if s:
+            st = s.data.get("status", "unknown")
+            if st == "critical":  critical += 1
+            elif st == "warning": warning  += 1
+            elif st == "ok":      ok       += 1
+
+    return ActionResult.success(
+        data={"monitors": len(mon_page.data), "domain_groups": len(grp_page.data),
+              "profiles": len(prf_page.data), "critical": critical, "warning": warning, "ok": ok},
+        summary=f"Web Tools: {len(mon_page.data)} monitor(s)")

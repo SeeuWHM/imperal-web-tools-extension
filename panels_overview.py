@@ -22,8 +22,8 @@ async def build_overview(ctx, view: str = "monitors") -> ui.UINode:
 
 async def _build_monitors_view(ctx) -> ui.UINode:
     mon_page, grp_page = await asyncio.gather(
-        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.id}, limit=10),
-        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.id}, limit=10),
+        ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
+        ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),
     )
     grp_map = {g.id: g.data["name"] for g in grp_page.data}
 
@@ -31,8 +31,8 @@ async def _build_monitors_view(ctx) -> ui.UINode:
         ui.Text(content="Domain Health", variant="subheading"),
         ui.Tooltip(
             content="Create a new domain health monitor",
-            children=ui.Button("New Monitor", icon="Plus", variant="primary",
-                               size="md",
+            children=ui.Button("+ New Monitor", icon="Plus", variant="primary",
+                               size="sm",
                                on_click=ui.Call("__panel__overview", view="new")),
         ),
     ], direction="h", justify="between", sticky=True, wrap=False)
@@ -57,9 +57,9 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 
     stats = ui.Stats([
         ui.Stat(label="Monitors", value=len(mon_page.data), icon="Monitor"),
-        ui.Stat(label="OK",       value=n_ok,   icon="CheckCircle",   color="green"),
-        ui.Stat(label="Warning",  value=n_warn, icon="AlertTriangle",  color="yellow"),
-        ui.Stat(label="Critical", value=n_crit, icon="XCircle",        color="red"),
+        ui.Stat(label="OK",       value=n_ok,   icon="CheckCircle",  color="green"),
+        ui.Stat(label="Warning",  value=n_warn, icon="AlertTriangle", color="yellow"),
+        ui.Stat(label="Critical", value=n_crit, icon="XCircle",       color="red"),
     ])
 
     chart_data = []
@@ -106,13 +106,11 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 # ─── New Monitor view ─────────────────────────────────────────────────────── #
 
 async def _build_new_view(ctx) -> ui.UINode:
-    count  = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.id})
+    count  = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     header = ui.Stack([
-        ui.Tooltip(
-            content="Back to monitors",
-            children=ui.Button("", icon="ArrowLeft", variant="ghost", size="md",
-                               on_click=ui.Call("__panel__overview", view="monitors")),
-        ),
+        ui.Button("← Back", icon="ArrowLeft", variant="ghost", size="sm",
+                  on_click=ui.Call("__panel__overview", view="monitors")),
+        ui.Text(content="New Monitor", variant="subheading"),
     ], direction="h", gap=2, sticky=True, wrap=False)
 
     if count >= MAX_MONITORS:
@@ -138,11 +136,9 @@ async def _build_new_view(ctx) -> ui.UINode:
                 ui.Input(placeholder="Monitor name...", param_name="name"),
                 ui.TagInput(
                     values=[],
-                    placeholder="domain.com — Enter · space · comma to add",
+                    placeholder="domain.com — press Enter to add",
                     param_name="domains",
-                    delimiters=[",", " "],
-                    validate=r"^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$",
-                    validate_message="Enter a valid domain (e.g. example.com)",
+                    delimiters=[","],
                 ),
                 ui.Stack([
                     ui.Toggle(label="SSL",   param_name="ssl",       value=True),
@@ -167,7 +163,7 @@ def _monitor_card(m, snap, grp_name: str) -> ui.UINode:
     last_run   = (m.data.get("last_run_at") or "")[:10]
     ssum       = snap.data.get("summary", {}) if snap else {}
     total      = ssum.get("total_domains", 0)
-    n_ok_dom   = ssum.get("domains_ok", min(ssum.get("ok", 0), total))
+    n_ok_dom   = ssum.get("domains_ok", 0)
     pct_ok     = int(n_ok_dom / total * 100) if total else 0
 
     if total:

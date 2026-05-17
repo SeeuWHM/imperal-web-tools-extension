@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.3] — 2026-05-17
+
+### Fixed
+- **`panels.py`** — Added `@ext.panel("secrets", slot="overlay")` explicitly. The previous fix in `app.py` (set `ext._panels["secrets"]["slot"]`) was a no-op: `_panels` is empty at `Extension.__init__` time, `@ext.panel()` decorators run later. Explicit registration is the authoritative fix — Kernel reads `ext.panels` after all decorators and sees `secrets → overlay`.
+- **`panels_ui_items.py:6`** — `_REGION_DISPLAY` and `PROFILE_CHECK_OPTS` were used but not imported from `panels_ui_base`. `_REGION_DISPLAY` caused a live `NameError` whenever a user expanded a geo-check row in the Scan Tool results panel.
+
+### Changed
+- **`imperal.json`** — version corrected to `1.4.3` (was stuck at `1.4.1` since patch2 → manifest was never re-synced with code version).
+
+---
+
 ## [1.4.2] — 2026-05-17
 
 ### Fixed

@@ -1,57 +1,1490 @@
 {
+  "manifest_schema_version": 3,
+  "sdk_version": "5.0.0",
   "app_id": "web-tools",
-  "version": "1.4.0",
-  "capabilities": ["store:read", "store:write"],
+  "version": "1.4.3",
+  "name": "Web Tools",
+  "description": "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
+  "icon": "icon.svg",
+  "actions_explicit": true,
+  "system": false,
+  "capabilities": [
+    "store:read",
+    "store:write"
+  ],
   "tools": [
     {
-      "name": "tool_web_tools_chat",
-      "description": "Web diagnostics — DNS, SSL, WHOIS, HTTP headers grade, email SPF DMARC DKIM, blacklist 30 DNSBL, port scan, SMTP test, geo probe EU/US/SG/MD, full parallel domain audit, domain health monitors with groups and check profiles",
-      "scopes": ["*"],
-      "parameters": {
-        "message": {"type": "string", "required": false},
-        "kwargs":  {"type": "string", "required": true}
-      }
-    },
-    {
       "name": "skeleton_refresh_web_tools",
-      "description": "Background refresh: domain monitor statuses from last scan snapshots.",
+      "description": "Refresh web-tools monitor statuses from last scan snapshots. Provides instant Webbee context: how many monitors are critical/warning.",
       "scopes": [],
-      "parameters": {
-        "kwargs": {"type": "string", "required": true}
-      }
+      "parameters": {}
     },
     {
-      "name": "__panel__sidebar",
-      "description": "Panel left: Domain Scan and IP Scan (tab buttons). TagInput domains, toggle checks, expandable results per domain/IP with rich detail.",
+      "name": "dns_lookup",
+      "description": "DNS record lookup — A/AAAA/MX/NS/TXT/CNAME/SRV/DNSSEC, global propagation across 15+ resolvers, direct authoritative NS query. Use for any DNS question.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "DNS lookup parameters.",
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "record_type": {
+            "default": "A",
+            "enum": [
+              "A",
+              "AAAA",
+              "IP",
+              "MX",
+              "NS",
+              "TXT",
+              "CNAME",
+              "SRV",
+              "DNSSEC",
+              "all",
+              "propagation"
+            ],
+            "title": "Record Type",
+            "type": "string"
+          },
+          "authoritative": {
+            "default": false,
+            "description": "Query from domain's own authoritative NS (A/AAAA/MX/NS/TXT/CNAME)",
+            "title": "Authoritative",
+            "type": "boolean"
+          },
+          "propagation_type": {
+            "default": "A",
+            "description": "Record type for propagation check",
+            "enum": [
+              "A",
+              "MX",
+              "NS",
+              "TXT",
+              "CNAME"
+            ],
+            "title": "Propagation Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "DnsLookupParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
       "scopes": [],
-      "parameters": {
-        "params": {"type": "string", "required": true}
-      }
+      "owner_chat_tool": "tool_web_tools_chat"
     },
     {
-      "name": "__panel__overview",
-      "description": "Panel right: monitors — stats, bar chart, sorted cards. view=monitors (default) or view=new (New Monitor form with toggles).",
+      "name": "ssl_check",
+      "description": "SSL/TLS certificate — expiry date, days remaining, issuer, grade A-F. Full mode adds chain, SANs, fingerprint and TLS version support.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "SSL certificate check parameters.",
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "full": {
+            "default": false,
+            "description": "Full check — adds chain, SANs, fingerprint, TLS version support",
+            "title": "Full",
+            "type": "boolean"
+          },
+          "port": {
+            "default": 443,
+            "title": "Port",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "SslCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
       "scopes": [],
-      "parameters": {
-        "params": {"type": "string", "required": true}
-      }
+      "owner_chat_tool": "tool_web_tools_chat"
     },
     {
-      "name": "__panel__detail",
-      "description": "Panel right: monitor detail — pie chart, expandable domain list (per-check KV), Settings accordion.",
+      "name": "whois_lookup",
+      "description": "WHOIS for domain (registrar, dates, nameservers, status) or IP (ASN, org, country). Use detail= for targeted sections: quick/full/dates/registrar/availability.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "WHOIS lookup parameters.",
+        "properties": {
+          "target": {
+            "description": "Domain name or IP address",
+            "title": "Target",
+            "type": "string"
+          },
+          "target_type": {
+            "default": "domain",
+            "enum": [
+              "domain",
+              "ip"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          },
+          "detail": {
+            "default": "quick",
+            "description": "'quick' — key fields, 'full' — complete, 'dates'/'registrar'/'availability' — specific section",
+            "enum": [
+              "full",
+              "quick",
+              "dates",
+              "registrar",
+              "availability"
+            ],
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "WhoisParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
       "scopes": [],
-      "parameters": {
-        "params": {"type": "string", "required": true}
-      }
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "http_check",
+      "description": "HTTP security headers grade A+ to F (HSTS/CSP/X-Frame-Options/X-Content-Type-Options). Shows missing headers with fix tips, redirect chain, response time.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "HTTP analysis parameters.",
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "check_type": {
+            "default": "grade",
+            "description": "headers=full analysis, grade=score only, quick=grade+counts, missing=broken headers+fixes, status, redirects",
+            "enum": [
+              "headers",
+              "grade",
+              "quick",
+              "missing",
+              "status",
+              "status_quick",
+              "redirects"
+            ],
+            "title": "Check Type",
+            "type": "string"
+          },
+          "mode": {
+            "default": "standard",
+            "description": "standard=6 headers, strict=8 headers",
+            "enum": [
+              "standard",
+              "strict"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "HttpCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "network_check",
+      "description": "Network diagnostics — ICMP ping (RTT/loss), MTR traceroute per-hop, reverse DNS (PTR), IP geolocation + ASN, ASN WHOIS prefix list.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Network diagnostic parameters.",
+        "properties": {
+          "target": {
+            "description": "Domain name or IP address",
+            "title": "Target",
+            "type": "string"
+          },
+          "check_type": {
+            "default": "ping",
+            "description": "ping=RTT/loss, traceroute=MTR per-hop, reverse_dns=PTR, ip_lookup=geo+ASN, asn=ASN WHOIS",
+            "enum": [
+              "ping",
+              "traceroute",
+              "reverse_dns",
+              "ip_lookup",
+              "ip_lookup_quick",
+              "asn"
+            ],
+            "title": "Check Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "NetworkCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "seo_check",
+      "description": "SEO check — meta title/description length and issues, robots.txt rules, sitemap.xml validation, Google indexing status. Use check_type to target a specific area.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "SEO check parameters.",
+        "properties": {
+          "target": {
+            "description": "Domain or full URL (full URL for meta check)",
+            "title": "Target",
+            "type": "string"
+          },
+          "check_type": {
+            "default": "meta",
+            "description": "meta=title/description/issues, robots=robots.txt rules, sitemap=sitemap.xml, indexing=Google status",
+            "enum": [
+              "meta",
+              "robots",
+              "sitemap",
+              "indexing"
+            ],
+            "title": "Check Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "SeoCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "email_check",
+      "description": "Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Email infrastructure check parameters.",
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "check_type": {
+            "default": "full",
+            "description": "spf/dmarc/dkim/bimi=individual check, full=grade A-F, trace=parse raw headers, generate_spf/generate_dmarc=build record",
+            "enum": [
+              "spf",
+              "dmarc",
+              "dkim",
+              "bimi",
+              "full",
+              "trace",
+              "generate_spf",
+              "generate_dmarc"
+            ],
+            "title": "Check Type",
+            "type": "string"
+          },
+          "dkim_selector": {
+            "default": "google",
+            "description": "DKIM selector (for 'dkim' check)",
+            "title": "Dkim Selector",
+            "type": "string"
+          },
+          "raw_headers": {
+            "default": "",
+            "description": "Raw Received: headers to parse (for 'trace')",
+            "title": "Raw Headers",
+            "type": "string"
+          },
+          "spf_includes": {
+            "description": "SPF include domains (for 'generate_spf')",
+            "items": {
+              "type": "string"
+            },
+            "title": "Spf Includes",
+            "type": "array"
+          },
+          "dmarc_policy": {
+            "default": "quarantine",
+            "description": "DMARC policy (for 'generate_dmarc')",
+            "enum": [
+              "none",
+              "quarantine",
+              "reject"
+            ],
+            "title": "Dmarc Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "EmailCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "blacklist_check",
+      "description": "Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL. Returns verdict: clean / listed / critical.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Blacklist check parameters.",
+        "properties": {
+          "target": {
+            "description": "IPv4 address or domain name",
+            "title": "Target",
+            "type": "string"
+          },
+          "target_type": {
+            "default": "ip",
+            "description": "'ip' checks 30 DNSBL in parallel, 'domain' resolves to IP then checks SURBL",
+            "enum": [
+              "ip",
+              "domain"
+            ],
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "BlacklistParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "port_scan",
+      "description": "TCP port check — single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Port scan parameters.",
+        "properties": {
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "port": {
+            "default": 0,
+            "description": "Specific port to check (0 = preset scan)",
+            "title": "Port",
+            "type": "integer"
+          },
+          "preset": {
+            "default": "web",
+            "description": "Port preset: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all",
+            "enum": [
+              "web",
+              "mail",
+              "database",
+              "all"
+            ],
+            "title": "Preset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "host"
+        ],
+        "title": "PortScanParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "smtp_test",
+      "description": "SMTP server test — connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner. Use to diagnose email delivery problems.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "SMTP test parameters.",
+        "properties": {
+          "target": {
+            "description": "Domain name (uses MX) or specific mail server hostname",
+            "title": "Target",
+            "type": "string"
+          },
+          "port": {
+            "default": 0,
+            "description": "Specific port to test (0 = auto-try 587/25/465 via MX)",
+            "title": "Port",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "SmtpTestParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "geo_check",
+      "description": "Multi-region probe from EU/US/SG/MD — DNS resolution + anycast mismatch, ping latency, HTTP availability, SSL validity, MTR traceroute, independently per region.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Multi-region geo probe parameters.",
+        "properties": {
+          "target": {
+            "description": "Domain name or IP address",
+            "title": "Target",
+            "type": "string"
+          },
+          "check_type": {
+            "default": "full",
+            "description": "Probe from EU/US/SG/MD: dns=resolution+mismatch, ping=latency, http=status, ssl=validity, traceroute, full=dns+http+ssl",
+            "enum": [
+              "dns",
+              "ping",
+              "http",
+              "ssl",
+              "traceroute",
+              "full"
+            ],
+            "title": "Check Type",
+            "type": "string"
+          },
+          "dns_type": {
+            "default": "A",
+            "enum": [
+              "A",
+              "MX",
+              "NS",
+              "TXT",
+              "CNAME"
+            ],
+            "title": "Dns Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "GeoCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "domain_full_check",
+      "description": "Complete domain audit — runs DNS+SSL+WHOIS+HTTP+email+blacklist+geo in parallel in one call. Use when user asks for full site health, domain report or audit.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Full parallel domain audit parameters.",
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "checks": {
+            "default": [
+              "dns",
+              "ssl",
+              "http",
+              "email",
+              "blacklist"
+            ],
+            "description": "Checks to run in parallel. Add 'geo' for multi-region probe (slowest). Add 'whois' for ownership data.",
+            "items": {
+              "enum": [
+                "dns",
+                "ssl",
+                "whois",
+                "http",
+                "email",
+                "blacklist",
+                "geo"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "DomainFullCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_domain_group",
+      "description": "Create a named group of domains for monitoring (max 5 groups, max 20 domains each). Required before creating a monitor with create_monitor.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:domain_group"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Create domain group parameters.",
+        "properties": {
+          "name": {
+            "description": "Group name",
+            "title": "Name",
+            "type": "string"
+          },
+          "domains": {
+            "description": "Domain names (max 20). From TagInput or chat.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "domains_csv": {
+            "default": "",
+            "description": "Comma/newline-separated domains (legacy CSV fallback)",
+            "title": "Domains Csv",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateGroupParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "group.created",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_domain_group",
+      "description": "Add, remove or replace domains in an existing group, or rename it (max 20 domains). Use list_domain_groups first to get the group_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:domain_group"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Update domain group parameters.",
+        "properties": {
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "New name (empty = keep current)",
+            "title": "Name",
+            "type": "string"
+          },
+          "domains": {
+            "description": "Full replacement domain list (from TagInput panel edit)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "add_domains": {
+            "description": "Domains to add (chat)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Add Domains",
+            "type": "array"
+          },
+          "remove_domains": {
+            "description": "Domains to remove (chat)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Remove Domains",
+            "type": "array"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "title": "UpdateGroupParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "group.updated",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_domain_groups",
+      "description": "Show all domain groups — names, domain lists and domain count. Call before create_monitor to pick the right group_id.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No parameters — satisfies V17 for parameterless handlers.",
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_domain_group",
+      "description": "Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:domain_group"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Delete domain group parameters.",
+        "properties": {
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id"
+        ],
+        "title": "DeleteGroupParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "group.deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_check_profile",
+      "description": "Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max 5 profiles, max 5 checks each).",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:check_profile"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Create check profile parameters.",
+        "properties": {
+          "name": {
+            "description": "Profile name",
+            "title": "Name",
+            "type": "string"
+          },
+          "panel_mode": {
+            "default": false,
+            "description": "True when sent from panel toggles",
+            "title": "Panel Mode",
+            "type": "boolean"
+          },
+          "ssl": {
+            "default": false,
+            "title": "Ssl",
+            "type": "boolean"
+          },
+          "http": {
+            "default": false,
+            "title": "Http",
+            "type": "boolean"
+          },
+          "email": {
+            "default": false,
+            "title": "Email",
+            "type": "boolean"
+          },
+          "blacklist": {
+            "default": false,
+            "title": "Blacklist",
+            "type": "boolean"
+          },
+          "geo": {
+            "default": false,
+            "title": "Geo",
+            "type": "boolean"
+          },
+          "whois": {
+            "default": false,
+            "title": "Whois",
+            "type": "boolean"
+          },
+          "dns": {
+            "default": false,
+            "title": "Dns",
+            "type": "boolean"
+          },
+          "checks": {
+            "description": "Check types (max 5): ssl/http/email/blacklist/geo/whois/dns",
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "checks_csv": {
+            "default": "",
+            "description": "Comma-separated check types (legacy)",
+            "title": "Checks Csv",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateProfileParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "profile.created",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_check_profiles",
+      "description": "Show all check profiles — names and enabled check types. Call before create_monitor to pick the right profile_id.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No parameters — satisfies V17 for parameterless handlers.",
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_check_profile",
+      "description": "Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:check_profile"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Update check profile — rename or change check types.",
+        "properties": {
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "New name (empty = keep current)",
+            "title": "Name",
+            "type": "string"
+          },
+          "panel_mode": {
+            "default": false,
+            "title": "Panel Mode",
+            "type": "boolean"
+          },
+          "ssl": {
+            "default": false,
+            "title": "Ssl",
+            "type": "boolean"
+          },
+          "http": {
+            "default": false,
+            "title": "Http",
+            "type": "boolean"
+          },
+          "email": {
+            "default": false,
+            "title": "Email",
+            "type": "boolean"
+          },
+          "blacklist": {
+            "default": false,
+            "title": "Blacklist",
+            "type": "boolean"
+          },
+          "geo": {
+            "default": false,
+            "title": "Geo",
+            "type": "boolean"
+          },
+          "whois": {
+            "default": false,
+            "title": "Whois",
+            "type": "boolean"
+          },
+          "dns": {
+            "default": false,
+            "title": "Dns",
+            "type": "boolean"
+          },
+          "checks": {
+            "description": "New check list (empty = keep current)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile_id"
+        ],
+        "title": "UpdateProfileParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "profile.updated",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_check_profile",
+      "description": "Permanently delete a check profile and all monitors that use it. Cannot be undone.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:check_profile"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Delete check profile parameters.",
+        "properties": {
+          "profile_id": {
+            "title": "Profile Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id"
+        ],
+        "title": "DeleteProfileParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "profile.deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_monitor",
+      "description": "Create a domain health monitor — saves a wt_monitors record that runs DNS/SSL/HTTP/email checks on a domain group at a recurring interval. Requires an existing domain group (group_id) and check profile (profile_id). NOT an automation rule. Max 5 monitors.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:monitor"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Create domain health monitor parameters.",
+        "properties": {
+          "name": {
+            "description": "Monitor name",
+            "title": "Name",
+            "type": "string"
+          },
+          "group_id": {
+            "description": "Domain group ID to monitor",
+            "title": "Group Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "description": "Check profile ID defining which checks to run",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "interval_hours": {
+            "default": 24,
+            "description": "How often to run checks, in hours (1/6/12/24/48/168)",
+            "title": "Interval Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "group_id",
+          "profile_id"
+        ],
+        "title": "CreateMonitorParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "monitor.created",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "list_monitors",
+      "description": "Show all domain health monitors — name, group, check profile, scan interval and last scan time. Use to find monitor_id for run_scan or update_monitor.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No parameters — satisfies V17 for parameterless handlers.",
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "update_monitor",
+      "description": "Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:monitor"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Update monitor — rename or change interval.",
+        "properties": {
+          "monitor_id": {
+            "title": "Monitor Id",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "New name (empty = keep current)",
+            "title": "Name",
+            "type": "string"
+          },
+          "interval_hours": {
+            "default": 0,
+            "description": "New interval in hours (0 = keep current)",
+            "title": "Interval Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "UpdateMonitorParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "monitor.updated",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "delete_monitor",
+      "description": "Delete a monitor. The domain group and check profile are preserved and can be reused.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "delete:monitor"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Delete domain health monitor parameters.",
+        "properties": {
+          "monitor_id": {
+            "title": "Monitor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "DeleteMonitorParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "monitor.deleted",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "create_monitor_full",
+      "description": "Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:monitor",
+        "create:domain_group",
+        "create:check_profile"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "name": {
+            "description": "Monitor name",
+            "title": "Name",
+            "type": "string"
+          },
+          "domains": {
+            "description": "Domains to monitor (max 20)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "interval_hours": {
+            "default": 24,
+            "description": "Scan interval in hours",
+            "title": "Interval Hours",
+            "type": "integer"
+          },
+          "checks": {
+            "description": "Check types (chat API)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "ssl": {
+            "default": true,
+            "title": "Ssl",
+            "type": "boolean"
+          },
+          "http": {
+            "default": true,
+            "title": "Http",
+            "type": "boolean"
+          },
+          "email": {
+            "default": true,
+            "title": "Email",
+            "type": "boolean"
+          },
+          "blacklist": {
+            "default": true,
+            "title": "Blacklist",
+            "type": "boolean"
+          },
+          "geo": {
+            "default": false,
+            "title": "Geo",
+            "type": "boolean"
+          },
+          "whois": {
+            "default": false,
+            "title": "Whois",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateMonitorFullParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "monitor.created",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_scan",
+      "description": "Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "monitor_id": {
+            "description": "Monitor ID to run scan for now",
+            "title": "Monitor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "RunScanParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "scan.completed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_scan_results",
+      "description": "Get the latest scan snapshot for a monitor — per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "monitor_id": {
+            "description": "Monitor ID to retrieve last scan results for",
+            "title": "Monitor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "GetScanResultsParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "quick_check",
+      "description": "Single-domain quick check from the panel — choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "domain": {
+            "description": "Domain name or IP address to check",
+            "title": "Domain",
+            "type": "string"
+          },
+          "preset": {
+            "default": "full",
+            "description": "Check type: full=5 checks parallel, or single check type",
+            "enum": [
+              "full",
+              "dns",
+              "ssl",
+              "http",
+              "email",
+              "blacklist",
+              "geo",
+              "ports"
+            ],
+            "title": "Preset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "QuickCheckParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "quick.completed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_scan_tool",
+      "description": "Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel. Use when user provides a list of domains to check simultaneously.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "domains": {
+            "description": "Domains or IPs to scan (max 10)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "ssl": {
+            "default": true,
+            "title": "Ssl",
+            "type": "boolean"
+          },
+          "http": {
+            "default": true,
+            "title": "Http",
+            "type": "boolean"
+          },
+          "email": {
+            "default": true,
+            "title": "Email",
+            "type": "boolean"
+          },
+          "blacklist": {
+            "default": true,
+            "title": "Blacklist",
+            "type": "boolean"
+          },
+          "geo": {
+            "default": false,
+            "title": "Geo",
+            "type": "boolean"
+          },
+          "whois": {
+            "default": false,
+            "title": "Whois",
+            "type": "boolean"
+          },
+          "ports": {
+            "default": false,
+            "title": "Ports",
+            "type": "boolean"
+          },
+          "smtp": {
+            "default": false,
+            "title": "Smtp",
+            "type": "boolean"
+          },
+          "propagation": {
+            "default": false,
+            "title": "Propagation",
+            "type": "boolean"
+          }
+        },
+        "title": "ScanToolParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "scan.tool",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "run_ip_scan",
+      "description": "Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "domains": {
+            "description": "IP addresses to scan (max 5)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "ip_lookup": {
+            "default": true,
+            "title": "Ip Lookup",
+            "type": "boolean"
+          },
+          "blacklist": {
+            "default": true,
+            "title": "Blacklist",
+            "type": "boolean"
+          },
+          "reverse": {
+            "default": true,
+            "title": "Reverse",
+            "type": "boolean"
+          },
+          "ports": {
+            "default": false,
+            "title": "Ports",
+            "type": "boolean"
+          },
+          "geo_ping": {
+            "default": true,
+            "title": "Geo Ping",
+            "type": "boolean"
+          }
+        },
+        "title": "IpScanParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "scan.tool",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_panel_data",
+      "description": "Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No parameters — satisfies V17 for parameterless handlers.",
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "return_schema": {},
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
     }
   ],
   "signals": [],
   "schedules": [
     {
       "name": "wt_monitor_runner",
-      "cron": "0 * * * *",
-      "description": "Hourly: runs overdue domain health monitors across all users"
+      "cron": "0 * * * *"
     }
   ],
-  "required_scopes": ["store:read", "store:write"]
+  "required_scopes": [],
+  "icon_size_bytes": 329,
+  "lifecycle": {
+    "health_check": {
+      "interval_sec": 60
+    }
+  }
 }

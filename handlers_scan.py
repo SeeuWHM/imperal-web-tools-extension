@@ -92,7 +92,8 @@ class RunScanParams(BaseModel):
 
 
 @chat.function("run_scan", action_type="write", event="scan.completed",
-               description="Trigger an immediate scan for a monitor — checks all domains in the group with the profile checks in parallel, stores a snapshot")
+               effects=["create:scan_result"],
+               description="Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.")
 async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
     try:
         return await _do_run_scan(ctx, params)
@@ -102,17 +103,17 @@ async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
 async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not mon or mon.data.get("owner_id") != ctx.user.id:
+    if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
 
-    grp = await ctx.store.get("wt_groups", mon.data["group_id"])
-    prf = await ctx.store.get("wt_profiles", mon.data["profile_id"])
+    grp = await ctx.store.get("wt_groups",   mon.data.get("group_id", ""))
+    prf = await ctx.store.get("wt_profiles", mon.data.get("profile_id", ""))
     if not grp or not prf:
         return ActionResult.error("Domain group or check profile was deleted.", retryable=False)
 
-    domains: list[str] = grp.data["domains"]
-    checks:  list[str] = prf.data["checks"]
-    now = datetime.datetime.utcnow().isoformat()
+    domains: list[str] = grp.data.get("domains", [])
+    checks:  list[str] = prf.data.get("checks",  [])
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     dom_sem = asyncio.Semaphore(3)
 
@@ -147,7 +148,7 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     old_snap_id = mon.data.get("last_snapshot_id")
     snap = await ctx.store.create("wt_snapshots", {
-        "owner_id":   ctx.user.id,
+        "owner_id":   ctx.user.imperal_id,
         "monitor_id": params.monitor_id,
         "status":     overall,
         "domains":    domain_results,
@@ -176,7 +177,7 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
         data={"snapshot_id": snap.id, "monitor_id": params.monitor_id,
               "status": overall, "summary": counts, "domains_checked": len(domains)},
         summary=f"Scan complete: {overall.upper()} — {len(domains)} domain(s), {issues} issue(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview", "__panel__detail"],
+        refresh_panels=["sidebar", "overview", "detail"],
     )
 
 
@@ -187,10 +188,10 @@ class GetScanResultsParams(BaseModel):
 
 
 @chat.function("get_scan_results", action_type="read",
-               description="Get the last scan snapshot for a monitor — per-domain per-check status, overall verdict and summary counts")
+               description="Get the latest scan snapshot for a monitor — per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.")
 async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
-    if not mon or mon.data.get("owner_id") != ctx.user.id:
+    if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
 
     snap_id = mon.data.get("last_snapshot_id")

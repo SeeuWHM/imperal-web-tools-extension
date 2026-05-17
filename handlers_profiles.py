@@ -34,9 +34,15 @@ class CreateProfileParams(BaseModel):
     checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("create_check_profile", action_type="write", event="profile.created",
-               description=f"Create a check profile — defines which checks to run per domain "
-                           f"health scan (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each)")
+               effects=["create:check_profile"],
+               description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each).")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
     if params.panel_mode:
         _order = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
@@ -46,7 +52,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
         if not check_list and params.checks_csv:
             check_list = [c.strip() for c in params.checks_csv.split(",")
                           if c.strip() in _VALID_CHECKS]
-    count = await ctx.store.count("wt_profiles", where={"owner_id": ctx.user.id})
+    count = await ctx.store.count("wt_profiles", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_PROFILES:
         return ActionResult.error(f"Limit reached: {MAX_PROFILES} profiles max.", retryable=False)
     if not check_list:
@@ -57,24 +63,24 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
             f"Too many checks ({len(check_list)}). Max {MAX_CHECKS}.", retryable=False)
     deduped = list(dict.fromkeys(check_list))
     doc = await ctx.store.create("wt_profiles", {
-        "owner_id":   ctx.user.id,
+        "owner_id":   ctx.user.imperal_id,
         "name":       params.name[:50],
         "checks":     deduped,
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
         data={"profile_id": doc.id, "name": params.name, "checks": deduped},
         summary=f"Created check profile '{params.name}': {', '.join(deduped)}",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
 # ─── List ─────────────────────────────────────────────────────────────────── #
 
 @chat.function("list_check_profiles", action_type="read",
-               description="List all check profiles with their configured check types")
-async def fn_list_check_profiles(ctx) -> ActionResult:
-    page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.id}, limit=10)
+               description="Show all check profiles — names and enabled check types. Call before create_monitor to pick the right profile_id.")
+async def fn_list_check_profiles(ctx, params: EmptyParams) -> ActionResult:
+    page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10)
     profiles = [
         {"profile_id": d.id, "name": d.data["name"], "checks": d.data["checks"]}
         for d in page.data
@@ -106,10 +112,11 @@ class UpdateProfileParams(BaseModel):
 
 
 @chat.function("update_check_profile", action_type="write", event="profile.updated",
-               description="Update a check profile — rename or change which checks it runs")
+               effects=["update:check_profile"],
+               description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Check profile not found.", retryable=False)
     patch: dict = {}
     if params.panel_mode:
@@ -133,7 +140,7 @@ async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionRes
         data={"profile_id": params.profile_id, "name": updated.data["name"],
               "checks": updated.data.get("checks", [])},
         summary=f"Updated profile '{updated.data['name']}': {checks_str}",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -145,21 +152,22 @@ class DeleteProfileParams(BaseModel):
 
 
 @chat.function("delete_check_profile", action_type="destructive", event="profile.deleted",
-               description="Delete a check profile and all monitors that use it")
+               effects=["delete:check_profile"],
+               description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Check profile not found.", retryable=False)
     name = doc.data["name"]
     await ctx.store.delete("wt_profiles", params.profile_id)
     mon_page = await ctx.store.query("wt_monitors",
-                                     where={"owner_id": ctx.user.id,
+                                     where={"owner_id": ctx.user.imperal_id,
                                             "profile_id": params.profile_id},
                                      limit=10)
 
     async def _del_mon(m):
         snaps = await ctx.store.query("wt_snapshots",
-                                      where={"owner_id": ctx.user.id, "monitor_id": m.id},
+                                      where={"owner_id": ctx.user.imperal_id, "monitor_id": m.id},
                                       limit=100)
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id) for s in snaps.data])
         await ctx.store.delete("wt_monitors", m.id)
@@ -168,5 +176,5 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
     return ActionResult.success(
         data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )

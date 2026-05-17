@@ -34,15 +34,22 @@ class CreateGroupParams(BaseModel):
     description: str = ""
 
 
+
+
+class EmptyParams(BaseModel):
+    """No parameters — satisfies V17 for parameterless handlers."""
+
+
 @chat.function("create_domain_group", action_type="write", event="group.created",
-               description=f"Create a domain group — organizes domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each)")
+               effects=["create:domain_group"],
+               description=f"Create a named group of domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each). Required before creating a monitor with create_monitor.")
 async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult:
     # Panel form sends domains_csv (plain text); chat sends domains (list)
     domain_list = params.domains
     if not domain_list and params.domains_csv:
         domain_list = [d.strip() for d in
                        params.domains_csv.replace("\n", ",").split(",") if d.strip()]
-    count = await ctx.store.count("wt_groups", where={"owner_id": ctx.user.id})
+    count = await ctx.store.count("wt_groups", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_GROUPS:
         return ActionResult.error(f"Limit reached: {MAX_GROUPS} domain groups max. Delete one first.", retryable=False)
     if not domain_list:
@@ -57,16 +64,16 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
     if len(domain_list) > MAX_DOMAINS:
         return ActionResult.error(f"Too many domains ({len(domain_list)}). Max {MAX_DOMAINS} per group.", retryable=False)
     doc = await ctx.store.create("wt_groups", {
-        "owner_id":    ctx.user.id,
+        "owner_id":    ctx.user.imperal_id,
         "name":        params.name[:50],
         "domains":     domain_list,
         "description": params.description,
-        "created_at":  datetime.datetime.utcnow().isoformat(),
+        "created_at":  datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
         data={"group_id": doc.id, "name": params.name, "domains": params.domains},
         summary=f"Created domain group '{params.name}' with {len(domain_list)} domain(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
@@ -81,10 +88,11 @@ class UpdateGroupParams(BaseModel):
 
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
-               description=f"Update a domain group — rename, add or remove domains (max {MAX_DOMAINS} total)")
+               effects=["update:domain_group"],
+               description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     if params.domains:
         # Full replacement from TagInput panel edit
@@ -114,14 +122,14 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
     return ActionResult.success(
         data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains},
         summary=f"Updated domain group '{updated.data['name']}' — {len(new_domains)} domain(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
 
 @chat.function("list_domain_groups", action_type="read",
-               description="List all domain groups with their domains and count")
-async def fn_list_domain_groups(ctx) -> ActionResult:
-    page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.id}, limit=10)
+               description="Show all domain groups — names, domain lists and domain count. Call before create_monitor to pick the right group_id.")
+async def fn_list_domain_groups(ctx, params: EmptyParams) -> ActionResult:
+    page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.imperal_id}, limit=10)
     groups = [
         {"group_id": d.id, "name": d.data["name"],
          "domains": d.data["domains"], "domain_count": len(d.data["domains"])}
@@ -139,22 +147,23 @@ class DeleteGroupParams(BaseModel):
 
 
 @chat.function("delete_domain_group", action_type="destructive", event="group.deleted",
-               description="Delete a domain group and all monitors that use it")
+               effects=["delete:domain_group"],
+               description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
-    if not doc or doc.data.get("owner_id") != ctx.user.id:
+    if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     name = doc.data["name"]
     await ctx.store.delete("wt_groups", params.group_id)
 
     mon_page = await ctx.store.query("wt_monitors",
-                                     where={"owner_id": ctx.user.id, "group_id": params.group_id},
+                                     where={"owner_id": ctx.user.imperal_id, "group_id": params.group_id},
                                      limit=10)
 
     async def _delete_monitor(m):
         snap_page = await ctx.store.query(
             "wt_snapshots",
-            where={"owner_id": ctx.user.id, "monitor_id": m.id},
+            where={"owner_id": ctx.user.imperal_id, "monitor_id": m.id},
             limit=100,
         )
         await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
@@ -166,6 +175,6 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
     return ActionResult.success(
         data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},
         summary=f"Deleted group '{name}' and {len(mon_page.data)} monitor(s)",
-        refresh_panels=["__panel__sidebar", "__panel__overview"],
+        refresh_panels=["sidebar", "overview"],
     )
 
