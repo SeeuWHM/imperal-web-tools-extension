@@ -11,9 +11,25 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.4.0",
+    version="1.4.2",
+    display_name="Web Tools",
+    description=(
+        "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
+        "WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, "
+        "SMTP test, recurring automated monitors with alerts."
+    ),
+    icon="icon.svg",
+    actions_explicit=True,
     capabilities=["store:read", "store:write"],
 )
+
+# SDK 5.0.0 auto-registers a "secrets" panel on slot="right" in Extension.__init__.
+# web-tools doesn't use ctx.secrets — move it away so Monitors is the sole right panel.
+try:
+    if "secrets" in ext._panels:
+        ext._panels["secrets"]["slot"] = "overlay"
+except (AttributeError, TypeError):
+    pass
 
 # URL of the web-tools-api backend. Override via env var for self-hosted deployments.
 WEB_TOOLS_URL = os.getenv("WEB_TOOLS_API_URL", "https://api.webhostmost.com/web-tools")
@@ -40,7 +56,6 @@ chat = ChatExtension(
         "run_ip_scan bulk IP scan ip_lookup blacklist reverse ports geo_ping"
     ),
     system_prompt=_SYSTEM_PROMPT,
-    model="claude-haiku-4-5-20251001",
 )
 
 # ─── Health Check ─────────────────────────────────────────────────────────── #
