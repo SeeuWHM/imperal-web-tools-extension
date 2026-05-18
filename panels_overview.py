@@ -29,12 +29,19 @@ async def _build_monitors_view(ctx) -> ui.UINode:
 
     header = ui.Stack([
         ui.Text(content="Domain Health", variant="subheading"),
-        ui.Tooltip(
-            content="Create a new domain health monitor",
-            children=ui.Button("+ New Monitor", icon="Plus", variant="primary",
-                               size="sm",
-                               on_click=ui.Call("__panel__overview", view="new")),
-        ),
+        ui.Stack([
+            ui.Tooltip(
+                content="Manage domain groups, check profiles and monitors",
+                children=ui.Button("", icon="Settings", variant="ghost", size="sm",
+                                   on_click=ui.Call("__panel__setup")),
+            ),
+            ui.Tooltip(
+                content="Create a new domain health monitor",
+                children=ui.Button("+ New Monitor", icon="Plus", variant="primary",
+                                   size="sm",
+                                   on_click=ui.Call("__panel__overview", view="new")),
+            ),
+        ], direction="h", gap=1),
     ], direction="h", justify="between", sticky=True, wrap=False)
 
     if not mon_page.data:

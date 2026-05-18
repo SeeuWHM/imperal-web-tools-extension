@@ -29,4 +29,5 @@ import handlers_quick          # noqa: F401
 import handlers_schedule      # noqa: F401
 import skeleton               # noqa: F401
 import panels_ui              # noqa: F401
+import panels_setup           # noqa: F401
 import panels                 # noqa: F401

@@ -267,7 +267,7 @@ async def build_setup(ctx) -> ui.UINode:
         ], gap=0),
         ui.Button("Close", icon="X", variant="ghost", size="sm",
                   on_click=ui.Call("__panel__overview", show_setup="")),
-    ], direction="horizontal", justify="between", align="center", sticky=True)
+    ], direction="h", justify="between", align="center", sticky=True)
 
     return ui.Stack([
         header,

@@ -6,6 +6,7 @@ from app import ext
 from panels_left     import build_sidebar
 from panels_overview import build_overview
 from panels_detail   import build_detail
+from panels_setup    import build_setup
 
 # ─── Refresh triggers ─────────────────────────────────────────────────────── #
 
@@ -21,7 +22,8 @@ _RIGHT_REFRESH = "on_event:scan.completed"
 @ext.panel("secrets", slot="overlay", title="Secrets", icon="Key")
 async def panel_secrets(ctx, **kwargs):
     """Secrets panel — forced to overlay so right slot belongs to Monitors."""
-    return None
+    from imperal_sdk import ui
+    return ui.Stack([])
 
 
 @ext.panel("sidebar", slot="left", title="Web Tools", icon="Globe",
@@ -45,3 +47,13 @@ async def panel_detail(ctx, monitor_id: str = "", **kwargs):
     if not monitor_id:
         return await build_overview(ctx)
     return await build_detail(ctx, monitor_id)
+
+
+@ext.panel("setup", slot="overlay", title="Setup", icon="Settings",
+           refresh="on_event:group.created,group.updated,group.deleted,"
+                   "profile.created,profile.updated,profile.deleted,"
+                   "monitor.created,monitor.updated,monitor.deleted",
+           center_overlay=True)
+async def panel_setup(ctx, **kwargs):
+    """Overlay setup panel — domain groups, check profiles, monitors."""
+    return await build_setup(ctx)

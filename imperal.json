@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.0.0",
   "app_id": "web-tools",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "name": "Web Tools",
   "description": "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
   "icon": "icon.svg",
