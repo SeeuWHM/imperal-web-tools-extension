@@ -41,6 +41,7 @@ class EmptyParams(BaseModel):
                data_model=ScanOpResult,
                description="Single-domain ad-hoc check from the panel. Presets: full=5 checks (dns+ssl+http+email+blacklist) in parallel, dns=DNS records, ssl=certificate quality grade, http=security headers grade, email=SPF/DMARC/DKIM, blacklist=spam lists, geo=reachability from EU/US/SG/MD (slowest), ports=TCP port scan. Result replaces left panel display.")
 async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
+    """Single-domain ad-hoc check from the panel."""
     d = params.domain.strip()
     if not d:
         return ActionResult.error("Enter a domain or IP address.", retryable=False)
@@ -118,6 +119,7 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
                data_model=PanelDataResult,
                description="Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.")
 async def fn_get_panel_data(ctx, params: EmptyParams) -> ActionResult:
+    """Panel data helper — returns counts and statuses for monitors, groups and profiles."""
     mon_page, grp_page, prf_page = await asyncio.gather(
         ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10),
         ctx.store.query("wt_groups",   where={"owner_id": ctx.user.imperal_id}, limit=10),

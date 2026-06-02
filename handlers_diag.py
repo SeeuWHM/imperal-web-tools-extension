@@ -35,6 +35,7 @@ class EmailCheckParams(BaseModel):
                data_model=EmailAuthResult,
                description="Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.")
 async def fn_email_check(ctx, params: EmailCheckParams) -> ActionResult:
+    """Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating..."""
     base = WEB_TOOLS_URL
     if params.check_type == "dkim":
         resp = await ctx.http.get(f"{base}/v1/email/dkim/{params.domain}",
@@ -78,6 +79,7 @@ class BlacklistParams(BaseModel):
                data_model=BlacklistResult,
                description="Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL. Returns verdict: clean / listed / critical.")
 async def fn_blacklist_check(ctx, params: BlacklistParams) -> ActionResult:
+    """Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL."""
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/blacklist/{params.target_type}/{params.target}")
     resp.raise_for_status()
     body = resp.json()
@@ -106,6 +108,7 @@ class PortScanParams(BaseModel):
                data_model=PortScanResult,
                description="TCP port check — single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all.")
 async def fn_port_scan(ctx, params: PortScanParams) -> ActionResult:
+    """TCP port check — single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/9..."""
     base = WEB_TOOLS_URL
     if params.port > 0:
         resp = await ctx.http.get(f"{base}/v1/ports/check/{params.host}/{params.port}")
@@ -136,6 +139,7 @@ class SmtpTestParams(BaseModel):
                data_model=SmtpResult,
                description="SMTP server test — connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner. Use to diagnose email delivery problems.")
 async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
+    """SMTP server test — connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner."""
     base = WEB_TOOLS_URL
     if params.port > 0:
         resp = await ctx.http.get(f"{base}/v1/smtp/test/host/{params.target}",
@@ -179,6 +183,7 @@ class GeoCheckParams(BaseModel):
                data_model=GeoCheckResult,
                description="Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). Use when user asks: 'loading speed from America/Asia/Europe', 'is site accessible from US', 'latency from Singapore', 'down for users in another country', 'скорость загрузки с Америки/Азии'. check_type=ping = latency from each region (ms). check_type=http = HTTP response time and status from each region (use for 'loading speed'). check_type=dns = DNS resolution consistency per region (finds anycast/Cloudflare issues). check_type=ssl = SSL reachability per region. check_type=traceroute = network path per region. check_type=full = ALL probes from all 4 regions in one call. NOTE: tests REACHABILITY and SPEED, not quality — for certificate grade use ssl_check, for header quality use http_check.")
 async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
+    """Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD)."""
     base = WEB_TOOLS_URL
     if params.check_type == "dns":
         resp = await ctx.http.get(f"{base}/v1/geo/dns/{params.target}",
@@ -210,6 +215,7 @@ class DomainFullCheckParams(BaseModel):
                data_model=DomainAuditResult,
                description="INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.")
 async def fn_domain_full_check(ctx, params: DomainFullCheckParams) -> ActionResult:
+    """INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain."""
     from handlers_scan import _run_domain_checks
     results = await _run_domain_checks(ctx, params.domain, params.checks)
     return ActionResult.success(

@@ -44,6 +44,7 @@ class EmptyParams(BaseModel):
                data_model=DomainGroupEntity,
                description=f"Create a named group of domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each). Required before creating a monitor with create_monitor.")
 async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult:
+    """Comma/newline-separated domains (legacy CSV fallback)"""
     domain_list = params.domains
     if not domain_list and params.domains_csv:
         domain_list = [d.strip() for d in
@@ -91,6 +92,7 @@ class UpdateGroupParams(BaseModel):
                data_model=DomainGroupEntity,
                description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
+    """Domains to remove (chat)"""
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
@@ -128,6 +130,7 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
                data_model=DomainGroupPage,
                description="Show all domain groups — names, domain lists and domain count. Call before create_monitor to pick the right group_id.")
 async def fn_list_domain_groups(ctx, params: EmptyParams) -> ActionResult:
+    """Show all domain groups — names, domain lists and domain count."""
     page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.imperal_id}, limit=10)
     groups = [
         {"group_id": d.id, "name": d.data["name"],
@@ -150,6 +153,7 @@ class DeleteGroupParams(BaseModel):
                data_model=WtOpResult,
                description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
+    """Permanently delete a domain group and cascade-delete all monitors that use it."""
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)

@@ -45,6 +45,7 @@ class EmptyParams(BaseModel):
                data_model=CheckProfileEntity,
                description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each).")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
+    """Comma-separated check types (legacy)"""
     if params.panel_mode:
         _order = ("ssl", "http", "email", "blacklist", "geo", "whois", "dns")
         check_list = [c for c in _order if getattr(params, c, False)]
@@ -82,6 +83,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
                data_model=CheckProfilePage,
                description="Show all check profiles — names and enabled check types. Call before create_monitor to pick the right profile_id.")
 async def fn_list_check_profiles(ctx, params: EmptyParams) -> ActionResult:
+    """Show all check profiles — names and enabled check types."""
     page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10)
     profiles = [
         {"profile_id": d.id, "name": d.data["name"], "checks": d.data["checks"]}
@@ -116,6 +118,7 @@ class UpdateProfileParams(BaseModel):
                data_model=CheckProfileEntity,
                description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
+    """Rename a check profile or replace its check type list."""
     doc = await ctx.store.get("wt_profiles", params.profile_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Check profile not found.", retryable=False)
@@ -156,6 +159,7 @@ class DeleteProfileParams(BaseModel):
                data_model=WtOpResult,
                description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:
+    """Permanently delete a check profile and all monitors that use it."""
     doc = await ctx.store.get("wt_profiles", params.profile_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Check profile not found.", retryable=False)

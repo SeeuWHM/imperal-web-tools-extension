@@ -53,6 +53,14 @@ chat = ChatExtension(
     ),
 )
 
+# ─── Lifecycle ────────────────────────────────────────────────────────────── #
+
+@ext.on_install
+async def on_install(ctx):
+    """First-time setup hook — web-tools keeps no per-user install state (monitors are created on demand)."""
+    return None
+
+
 # ─── Health Check ─────────────────────────────────────────────────────────── #
 
 @ext.health_check

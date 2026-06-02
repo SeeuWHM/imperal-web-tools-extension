@@ -37,6 +37,7 @@ class ScanToolParams(BaseModel):
                data_model=ScanOpResult,
                description="Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel. Use when user provides a list of domains to check simultaneously.")
 async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
+    """Bulk domain scan (max 10) with chosen checks via toggles — results appear in the left panel."""
     domains = list(dict.fromkeys(
         d.strip() for d in (params.domains or []) if d.strip()
     ))[:10]
@@ -121,6 +122,7 @@ def _ip_status(check: str, data: dict) -> str:
                data_model=ScanOpResult,
                description="Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
+    """Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD."""
     ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
     if not ips:
         return ActionResult.error("Enter at least one IP address.", retryable=False)

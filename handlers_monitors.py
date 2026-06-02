@@ -40,6 +40,7 @@ class EmptyParams(BaseModel):
                    f"NOT an automation rule. Max {MAX_MONITORS} monitors."
                ))
 async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
+    """How often to run checks, in hours (1/6/12/24/48/168)"""
     count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:
         return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
@@ -80,6 +81,7 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
                data_model=MonitorPage,
                description="Show all configured recurring domain monitors (scheduled automation setup). Use ONLY when user explicitly says: 'show my monitors', 'list monitors', 'what am I monitoring', 'manage monitors'. NEVER use this for: DNS lookups, domain checks, 'show records', 'check domain', 'what can webtools do on domain X', loading speed, SSL, blacklists — use dns_lookup, domain_full_check, or geo_check for all of those instead. Monitor NAMES in the database are irrelevant — a monitor named 'DNS monitor' does NOT mean this function should handle DNS record lookups.")
 async def fn_list_monitors(ctx, params: EmptyParams) -> ActionResult:
+    """Show all configured recurring domain monitors (scheduled automation setup)."""
     page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
     monitors = [
         {
@@ -114,6 +116,7 @@ class UpdateMonitorParams(BaseModel):
                data_model=MonitorEntity,
                description="Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
+    """Rename a monitor or change its scan interval."""
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
@@ -151,6 +154,7 @@ class DeleteMonitorParams(BaseModel):
                data_model=WtOpResult,
                description="Delete a monitor. The domain group and check profile are preserved and can be reused.")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
+    """Delete a monitor."""
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
@@ -192,6 +196,7 @@ class CreateMonitorFullParams(BaseModel):
                data_model=MonitorEntity,
                description="Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor.")
 async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:
+    """Create a complete health monitor in one step — name, domains, check types and interval."""
     count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:
         return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)

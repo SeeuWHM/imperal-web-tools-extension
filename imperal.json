@@ -1,6 +1,6 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.2.0",
+  "sdk_version": "5.2.1",
   "app_id": "web-tools",
   "version": "1.5.0",
   "name": "Web Tools",
@@ -15,13 +15,13 @@
   "tools": [
     {
       "name": "skeleton_refresh_web_tools",
-      "description": "Refresh web-tools monitor statuses from last scan snapshots. Provides instant Webbee context: how many monitors are critical/warning.",
+      "description": "Web Tools monitor health summary — critical/warning/ok counts only. For DNS lookups, domain audits, geo checks and all diagnostic tools use dns_lookup / domain_full_check / geo_check — they do NOT require monitors.",
       "scopes": [],
       "parameters": {}
     },
     {
       "name": "dns_lookup",
-      "description": "DNS record lookup — A/AAAA/MX/NS/TXT/CNAME/SRV/DNSSEC, global propagation across 15+ resolvers, direct authoritative NS query. Use for any DNS question.",
+      "description": "DNS record lookup — use this for ANY request about DNS records of a domain. IMPORTANT: use record_type='all' when user asks for 'all DNS records', 'все записи', 'show all', 'all types' — returns A+AAAA+MX+NS+TXT+CNAME+SRV in ONE call. Use record_type='propagation' + propagation_type='NS' when user says 'NS records updated, did they propagate?', 'did my DNS update?', 'already propagated?'. Use specific type (MX/TXT/NS/A) only when user asks for that specific type. Use authoritative=true to query domain's own NS directly. This function does NOT need any monitors to exist — works on any domain instantly.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -58,17 +58,24 @@
             "type": "boolean"
           },
           "propagation_type": {
-            "default": "A",
-            "description": "Record type for propagation check",
-            "enum": [
-              "A",
-              "MX",
-              "NS",
-              "TXT",
-              "CNAME"
+            "anyOf": [
+              {
+                "enum": [
+                  "A",
+                  "MX",
+                  "NS",
+                  "TXT",
+                  "CNAME"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Propagation Type",
-            "type": "string"
+            "default": null,
+            "description": "Record type for propagation check (default: A). Use NS when user updated NS records, MX for mail, TXT for SPF/DMARC.",
+            "title": "Propagation Type"
           }
         },
         "required": [
@@ -77,7 +84,223 @@
         "title": "DnsLookupParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic domain diagnostic — DNS, WHOIS, HTTP, SEO, Network.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_check",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -86,7 +309,7 @@
     },
     {
       "name": "ssl_check",
-      "description": "SSL/TLS certificate — expiry date, days remaining, issuer, grade A-F. Full mode adds chain, SANs, fingerprint and TLS version support.",
+      "description": "SSL certificate QUALITY — grade A-F, days until expiry, issuer, TLS version support. Full mode adds chain, SANs, fingerprint. Use this to answer 'how good is my SSL cert?'. To check if SSL is accessible FROM different world regions, use geo_check with check_type=ssl instead.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -116,7 +339,302 @@
         "title": "SslCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "SSL/TLS certificate check result.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "cert_issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cert Issuer",
+            "x-sdl-role": "net.cert_issuer"
+          },
+          "cert_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cert Subject",
+            "x-sdl-role": "net.cert_subject"
+          },
+          "not_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Not After",
+            "x-sdl-role": "net.not_after"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fingerprint",
+            "x-sdl-role": "net.fingerprint"
+          },
+          "cert_is_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cert Is Valid",
+            "x-sdl-role": "net.cert_is_valid"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "ssl_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Grade",
+            "x-sdl-role": "wt.grade"
+          },
+          "days_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Days Remaining",
+            "x-sdl-role": "wt.days_remaining"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "SslResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -125,7 +643,7 @@
     },
     {
       "name": "whois_lookup",
-      "description": "WHOIS for domain (registrar, dates, nameservers, status) or IP (ASN, org, country). Use detail= for targeted sections: quick/full/dates/registrar/availability.",
+      "description": "WHOIS ownership data — for domains: registrar, creation/expiry dates, nameservers, status. For IPs: owner org, ASN, country, abuse contact. Use target_type=ip for IP addresses. NOTE: for IP geolocation (city, latitude, latitude) use network_check with check_type=ip_lookup instead.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -167,7 +685,223 @@
         "title": "WhoisParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic domain diagnostic — DNS, WHOIS, HTTP, SEO, Network.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_check",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -176,7 +910,7 @@
     },
     {
       "name": "http_check",
-      "description": "HTTP security headers grade A+ to F (HSTS/CSP/X-Frame-Options/X-Content-Type-Options). Shows missing headers with fix tips, redirect chain, response time.",
+      "description": "HTTP security headers QUALITY — grade A+ to F (HSTS/CSP/X-Frame-Options/X-Content-Type-Options), missing headers with fix tips, redirect chain, response time. Use to answer 'how secure are my HTTP headers?'. To check if site responds from different world regions, use geo_check with check_type=http instead.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -220,7 +954,223 @@
         "title": "HttpCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic domain diagnostic — DNS, WHOIS, HTTP, SEO, Network.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_check",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -229,7 +1179,7 @@
     },
     {
       "name": "network_check",
-      "description": "Network diagnostics — ICMP ping (RTT/loss), MTR traceroute per-hop, reverse DNS (PTR), IP geolocation + ASN, ASN WHOIS prefix list.",
+      "description": "Network diagnostics. Works with BOTH domains and IPs: ping (latency/packet loss), traceroute (per-hop MTR path). Works with IP ADDRESSES ONLY — never use on a domain name: ip_lookup (geolocation: city/lat/lon/country — different from whois_lookup which gives ownership), reverse_dns (PTR record — who is this IP?), asn (ASN WHOIS prefix list). Example: ping for 'amplica.md', ip_lookup for '104.18.15.2'.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -263,7 +1213,223 @@
         "title": "NetworkCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic domain diagnostic — DNS, WHOIS, HTTP, SEO, Network.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_check",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -304,7 +1470,223 @@
         "title": "SeoCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic domain diagnostic — DNS, WHOIS, HTTP, SEO, Network.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_check",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -379,7 +1761,178 @@
         "title": "EmailCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Email authentication check — SPF, DMARC, DKIM, BIMI, full grade.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "email_auth_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "EmailAuthResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -418,7 +1971,239 @@
         "title": "BlacklistParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Spam blacklist check — DNSBL/SURBL verdict.",
+        "properties": {
+          "risk_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Risk Score",
+            "x-sdl-role": "sec.risk_score"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Risk Level",
+            "x-sdl-role": "sec.risk_level"
+          },
+          "risk_factors": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Risk Factors",
+            "x-sdl-role": "sec.risk_factors"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "blacklist_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Type",
+            "x-sdl-role": "wt.target_type"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Verdict",
+            "x-sdl-role": "wt.verdict"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "BlacklistResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -464,7 +2249,165 @@
         "title": "PortScanParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "TCP port scan result.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "port_scan_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PortScanResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -499,7 +2442,210 @@
         "title": "SmtpTestParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "SMTP server connectivity test result.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "smtp_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "raw_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Data",
+            "x-sdl-role": "wt.raw_data"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "SmtpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -508,7 +2654,7 @@
     },
     {
       "name": "geo_check",
-      "description": "Multi-region probe from EU/US/SG/MD — DNS resolution + anycast mismatch, ping latency, HTTP availability, SSL validity, MTR traceroute, independently per region.",
+      "description": "Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). Use when user asks: 'loading speed from America/Asia/Europe', 'is site accessible from US', 'latency from Singapore', 'down for users in another country', 'скорость загрузки с Америки/Азии'. check_type=ping = latency from each region (ms). check_type=http = HTTP response time and status from each region (use for 'loading speed'). check_type=dns = DNS resolution consistency per region (finds anycast/Cloudflare issues). check_type=ssl = SSL reachability per region. check_type=traceroute = network path per region. check_type=full = ALL probes from all 4 regions in one call. NOTE: tests REACHABILITY and SPEED, not quality — for certificate grade use ssl_check, for header quality use http_check.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -554,7 +2700,178 @@
         "title": "GeoCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Multi-region geo probe result (EU/US/SG/MD).",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "geo_result",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Type",
+            "x-sdl-role": "wt.check_type"
+          },
+          "regions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Regions",
+            "x-sdl-role": "wt.regions"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "GeoCheckResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -563,7 +2880,7 @@
     },
     {
       "name": "domain_full_check",
-      "description": "Complete domain audit — runs DNS+SSL+WHOIS+HTTP+email+blacklist+geo in parallel in one call. Use when user asks for full site health, domain report or audit.",
+      "description": "INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -606,7 +2923,165 @@
         "title": "DomainFullCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Full parallel domain audit — all check results combined.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain",
+            "x-sdl-role": "net.domain"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ip",
+            "x-sdl-role": "net.ip"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Port",
+            "x-sdl-role": "net.port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Protocol",
+            "x-sdl-role": "net.protocol"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record Type",
+            "x-sdl-role": "net.record_type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_audit",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "check_results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check Results",
+            "x-sdl-role": "wt.check_results"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainAuditResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -656,7 +3131,128 @@
         "title": "CreateGroupParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Named group of domains for monitoring.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_group",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id",
+            "x-sdl-role": "wt.group_id"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "domain_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain Count",
+            "x-sdl-role": "wt.domain_count"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainGroupEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "group.created",
       "background": false,
       "long_running": false,
@@ -716,7 +3312,128 @@
         "title": "UpdateGroupParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Named group of domains for monitoring.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "domain_group",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id",
+            "x-sdl-role": "wt.group_id"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "domain_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain Count",
+            "x-sdl-role": "wt.domain_count"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "DomainGroupEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "group.updated",
       "background": false,
       "long_running": false,
@@ -736,7 +3453,177 @@
         "title": "EmptyParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "DomainGroupEntity": {
+            "description": "Named group of domains for monitoring.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "domain_group",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "group_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Group Id",
+                "x-sdl-role": "wt.group_id"
+              },
+              "domains": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Domains",
+                "x-sdl-role": "wt.domains"
+              },
+              "domain_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Domain Count",
+                "x-sdl-role": "wt.domain_count"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "DomainGroupEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "Paginated domain group list — returned by list_domain_groups().",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/DomainGroupEntity"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DomainGroupPage",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -766,7 +3653,99 @@
         "title": "DeleteGroupParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic CRUD confirmation — create/update/delete operations.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "wt_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitors_removed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitors Removed",
+            "x-sdl-role": "wt.monitors_removed"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "WtOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "group.deleted",
       "background": false,
       "long_running": false,
@@ -852,7 +3831,115 @@
         "title": "CreateProfileParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Check profile — defines which checks run per domain in a monitor.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "check_profile",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Id",
+            "x-sdl-role": "wt.profile_id"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "CheckProfileEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "profile.created",
       "background": false,
       "long_running": false,
@@ -872,7 +3959,164 @@
         "title": "EmptyParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "CheckProfileEntity": {
+            "description": "Check profile — defines which checks run per domain in a monitor.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "check_profile",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "profile_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Profile Id",
+                "x-sdl-role": "wt.profile_id"
+              },
+              "checks": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Checks",
+                "x-sdl-role": "wt.checks"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "CheckProfileEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "Paginated check profile list — returned by list_check_profiles().",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/CheckProfileEntity"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CheckProfilePage",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -956,7 +4200,115 @@
         "title": "UpdateProfileParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Check profile — defines which checks run per domain in a monitor.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "check_profile",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Id",
+            "x-sdl-role": "wt.profile_id"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "CheckProfileEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "profile.updated",
       "background": false,
       "long_running": false,
@@ -986,7 +4338,99 @@
         "title": "DeleteProfileParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic CRUD confirmation — create/update/delete operations.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "wt_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitors_removed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitors Removed",
+            "x-sdl-role": "wt.monitors_removed"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "WtOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "profile.deleted",
       "background": false,
       "long_running": false,
@@ -1035,7 +4479,319 @@
         "title": "CreateMonitorParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Domain health monitor — recurring scan configuration.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At",
+            "x-sdl-role": "time.start_at"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At",
+            "x-sdl-role": "time.end_at"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due At",
+            "x-sdl-role": "time.due_at"
+          },
+          "all_day": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "All Day",
+            "x-sdl-role": "time.all_day"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Timezone",
+            "x-sdl-role": "time.timezone"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id",
+            "x-sdl-role": "wt.group_id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Id",
+            "x-sdl-role": "wt.profile_id"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Interval Hours",
+            "x-sdl-role": "wt.interval_hours"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Enabled",
+            "x-sdl-role": "wt.enabled"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Run At",
+            "x-sdl-role": "wt.last_run_at"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Count",
+            "x-sdl-role": "wt.domains_count"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "monitor.created",
       "background": false,
       "long_running": false,
@@ -1044,7 +4800,7 @@
     },
     {
       "name": "list_monitors",
-      "description": "Show all domain health monitors — name, group, check profile, scan interval and last scan time. Use to find monitor_id for run_scan or update_monitor.",
+      "description": "Show all configured recurring domain monitors (scheduled automation setup). Use ONLY when user explicitly says: 'show my monitors', 'list monitors', 'what am I monitoring', 'manage monitors'. NEVER use this for: DNS lookups, domain checks, 'show records', 'check domain', 'what can webtools do on domain X', loading speed, SSL, blacklists — use dns_lookup, domain_full_check, or geo_check for all of those instead. Monitor NAMES in the database are irrelevant — a monitor named 'DNS monitor' does NOT mean this function should handle DNS record lookups.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -1055,7 +4811,368 @@
         "title": "EmptyParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "$defs": {
+          "MonitorEntity": {
+            "description": "Domain health monitor — recurring scan configuration.",
+            "properties": {
+              "health": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "healthy",
+                      "degraded",
+                      "down"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Health",
+                "x-sdl-role": "net.health"
+              },
+              "uptime_s": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Uptime S",
+                "x-sdl-role": "net.uptime_s"
+              },
+              "last_check_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Last Check At",
+                "x-sdl-role": "net.last_check_at"
+              },
+              "start_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Start At",
+                "x-sdl-role": "time.start_at"
+              },
+              "end_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "End At",
+                "x-sdl-role": "time.end_at"
+              },
+              "due_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Due At",
+                "x-sdl-role": "time.due_at"
+              },
+              "all_day": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "All Day",
+                "x-sdl-role": "time.all_day"
+              },
+              "timezone": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Timezone",
+                "x-sdl-role": "time.timezone"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "monitor",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "monitor_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Monitor Id",
+                "x-sdl-role": "wt.monitor_id"
+              },
+              "group_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Group Id",
+                "x-sdl-role": "wt.group_id"
+              },
+              "profile_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Profile Id",
+                "x-sdl-role": "wt.profile_id"
+              },
+              "interval_hours": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Interval Hours",
+                "x-sdl-role": "wt.interval_hours"
+              },
+              "enabled": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Enabled",
+                "x-sdl-role": "wt.enabled"
+              },
+              "last_run_at": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Last Run At",
+                "x-sdl-role": "wt.last_run_at"
+              },
+              "snapshot_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Snapshot Id",
+                "x-sdl-role": "wt.snapshot_id"
+              },
+              "domains_count": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Domains Count",
+                "x-sdl-role": "wt.domains_count"
+              },
+              "checks": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Checks",
+                "x-sdl-role": "wt.checks"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "MonitorEntity",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "Paginated monitor list — returned by list_monitors().",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/MonitorEntity"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "MonitorPage",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1097,7 +5214,319 @@
         "title": "UpdateMonitorParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Domain health monitor — recurring scan configuration.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At",
+            "x-sdl-role": "time.start_at"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At",
+            "x-sdl-role": "time.end_at"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due At",
+            "x-sdl-role": "time.due_at"
+          },
+          "all_day": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "All Day",
+            "x-sdl-role": "time.all_day"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Timezone",
+            "x-sdl-role": "time.timezone"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id",
+            "x-sdl-role": "wt.group_id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Id",
+            "x-sdl-role": "wt.profile_id"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Interval Hours",
+            "x-sdl-role": "wt.interval_hours"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Enabled",
+            "x-sdl-role": "wt.enabled"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Run At",
+            "x-sdl-role": "wt.last_run_at"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Count",
+            "x-sdl-role": "wt.domains_count"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "monitor.updated",
       "background": false,
       "long_running": false,
@@ -1127,7 +5556,99 @@
         "title": "DeleteMonitorParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Generic CRUD confirmation — create/update/delete operations.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "wt_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitors_removed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitors Removed",
+            "x-sdl-role": "wt.monitors_removed"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "WtOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "monitor.deleted",
       "background": false,
       "long_running": false,
@@ -1211,7 +5732,319 @@
         "title": "CreateMonitorFullParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Domain health monitor — recurring scan configuration.",
+        "properties": {
+          "health": {
+            "anyOf": [
+              {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "down"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Health",
+            "x-sdl-role": "net.health"
+          },
+          "uptime_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Uptime S",
+            "x-sdl-role": "net.uptime_s"
+          },
+          "last_check_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Check At",
+            "x-sdl-role": "net.last_check_at"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start At",
+            "x-sdl-role": "time.start_at"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End At",
+            "x-sdl-role": "time.end_at"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due At",
+            "x-sdl-role": "time.due_at"
+          },
+          "all_day": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "All Day",
+            "x-sdl-role": "time.all_day"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Timezone",
+            "x-sdl-role": "time.timezone"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Id",
+            "x-sdl-role": "wt.group_id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Id",
+            "x-sdl-role": "wt.profile_id"
+          },
+          "interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Interval Hours",
+            "x-sdl-role": "wt.interval_hours"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Enabled",
+            "x-sdl-role": "wt.enabled"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Run At",
+            "x-sdl-role": "wt.last_run_at"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Count",
+            "x-sdl-role": "wt.domains_count"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorEntity",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "monitor.created",
       "background": false,
       "long_running": false,
@@ -1220,7 +6053,7 @@
     },
     {
       "name": "run_scan",
-      "description": "Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.",
+      "description": "Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors). Scans ALL domains in that monitor's group. Use ONLY when user explicitly mentions a monitor by name or asks to 'run monitor', 'rescan monitor', 'refresh monitor now'. Do NOT use this for ad-hoc domain checks — for that use domain_full_check instead.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1241,7 +6074,211 @@
         "title": "RunScanParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Domain monitor scan snapshot result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor_scan",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Checked",
+            "x-sdl-role": "wt.domains_checked"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary",
+            "x-sdl-role": "wt.summary"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "checks_run": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks Run",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorScanResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "scan.completed",
       "background": false,
       "long_running": false,
@@ -1250,7 +6287,7 @@
     },
     {
       "name": "get_scan_results",
-      "description": "Get the latest scan snapshot for a monitor — per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.",
+      "description": "Get last snapshot results for an EXISTING MONITOR (requires monitor_id). Shows per-domain/per-check status from the most recent scheduled scan. Use ONLY when user asks about a specific monitor's results or history. Do NOT use for ad-hoc domain checks — for that use domain_full_check.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -1269,7 +6306,211 @@
         "title": "GetScanResultsParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Domain monitor scan snapshot result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor_scan",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Checked",
+            "x-sdl-role": "wt.domains_checked"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary",
+            "x-sdl-role": "wt.summary"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "checks_run": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks Run",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorScanResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "",
       "background": false,
       "long_running": false,
@@ -1278,7 +6519,7 @@
     },
     {
       "name": "quick_check",
-      "description": "Single-domain quick check from the panel — choose preset (full/dns/ssl/http/email/blacklist/geo/ports). Result replaces left panel. Use for ad-hoc checks without a monitor.",
+      "description": "Single-domain ad-hoc check from the panel. Presets: full=5 checks (dns+ssl+http+email+blacklist) in parallel, dns=DNS records, ssl=certificate quality grade, http=security headers grade, email=SPF/DMARC/DKIM, blacklist=spam lists, geo=reachability from EU/US/SG/MD (slowest), ports=TCP port scan. Result replaces left panel display.",
       "action_type": "write",
       "chain_callable": true,
       "effects": [
@@ -1315,8 +6556,375 @@
         "title": "QuickCheckParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Bulk / quick scan operation result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "scan_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "scanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scanned",
+            "x-sdl-role": "wt.scanned"
+          },
+          "issues": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issues",
+            "x-sdl-role": "wt.issues"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preset",
+            "x-sdl-role": "wt.preset"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Results",
+            "x-sdl-role": "wt.results"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ScanOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "quick.completed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_panel_data",
+      "description": "Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No parameters — satisfies V17 for parameterless handlers.",
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "Panel summary — monitor/group/profile counts and health totals.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "panel_data",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Count",
+            "x-sdl-role": "wt.monitor_count"
+          },
+          "group_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group Count",
+            "x-sdl-role": "wt.group_count"
+          },
+          "profile_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile Count",
+            "x-sdl-role": "wt.profile_count"
+          },
+          "critical_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Critical Count",
+            "x-sdl-role": "wt.critical_count"
+          },
+          "warning_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Warning Count",
+            "x-sdl-role": "wt.warning_count"
+          },
+          "ok_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ok Count",
+            "x-sdl-role": "wt.ok_count"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PanelDataResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
       "background": false,
       "long_running": false,
       "scopes": [],
@@ -1390,7 +6998,197 @@
         "title": "ScanToolParams",
         "type": "object"
       },
-      "return_schema": {},
+      "return_schema": {
+        "description": "Bulk / quick scan operation result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "scan_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "scanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scanned",
+            "x-sdl-role": "wt.scanned"
+          },
+          "issues": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issues",
+            "x-sdl-role": "wt.issues"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preset",
+            "x-sdl-role": "wt.preset"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Results",
+            "x-sdl-role": "wt.results"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ScanOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
       "event": "scan.tool",
       "background": false,
       "long_running": false,
@@ -1445,28 +7243,198 @@
         "title": "IpScanParams",
         "type": "object"
       },
-      "return_schema": {},
-      "event": "scan.tool",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_web_tools_chat"
-    },
-    {
-      "name": "get_panel_data",
-      "description": "Panel data helper — returns counts and statuses for monitors, groups and profiles. Called by the panel on load; not needed in regular LLM chat.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "description": "No parameters — satisfies V17 for parameterless handlers.",
-        "properties": {},
-        "title": "EmptyParams",
-        "type": "object"
+      "return_schema": {
+        "description": "Bulk / quick scan operation result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "scan_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "scanned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scanned",
+            "x-sdl-role": "wt.scanned"
+          },
+          "issues": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issues",
+            "x-sdl-role": "wt.issues"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks",
+            "x-sdl-role": "wt.checks"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preset",
+            "x-sdl-role": "wt.preset"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Results",
+            "x-sdl-role": "wt.results"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ScanOpResult",
+        "type": "object",
+        "x-sdl": "entity"
       },
-      "return_schema": {},
-      "event": "",
+      "event": "scan.tool",
       "background": false,
       "long_running": false,
       "scopes": [],
@@ -1483,8 +7451,14 @@
   "required_scopes": [],
   "icon_size_bytes": 329,
   "lifecycle": {
+    "on_install": true,
     "health_check": {
       "interval_sec": 60
+    }
+  },
+  "lifecycle_hooks": {
+    "on_install": {
+      "signature": "(ctx)"
     }
   }
 }

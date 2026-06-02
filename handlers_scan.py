@@ -96,6 +96,7 @@ class RunScanParams(BaseModel):
                data_model=MonitorScanResult,
                description="Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors). Scans ALL domains in that monitor's group. Use ONLY when user explicitly mentions a monitor by name or asks to 'run monitor', 'rescan monitor', 'refresh monitor now'. Do NOT use this for ad-hoc domain checks — for that use domain_full_check instead.")
 async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
+    """Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors)."""
     try:
         return await _do_run_scan(ctx, params)
     except Exception as exc:
@@ -192,6 +193,7 @@ class GetScanResultsParams(BaseModel):
                data_model=MonitorScanResult,
                description="Get last snapshot results for an EXISTING MONITOR (requires monitor_id). Shows per-domain/per-check status from the most recent scheduled scan. Use ONLY when user asks about a specific monitor's results or history. Do NOT use for ad-hoc domain checks — for that use domain_full_check.")
 async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult:
+    """Get last snapshot results for an EXISTING MONITOR (requires monitor_id)."""
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
     if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
