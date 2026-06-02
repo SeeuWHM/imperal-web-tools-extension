@@ -1,4 +1,4 @@
-"""web-tools · Scan runner, results, quick check."""
+"""web-tools · Scan runner, results, quick check (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
 import asyncio
@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from schemas_sdl_builders import MonitorScanResult, build_monitor_scan
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────── #
@@ -15,12 +16,11 @@ from imperal_sdk import ActionResult
 def _check_status(check: str, data: dict) -> str:
     """Derive ok/warning/critical/unknown from raw check result data."""
     if not data or data.get("error"):
-        return "unknown"  # API/network error ≠ domain problem
-    # ssl/http include "error": null on success — use .get(), not "in"
+        return "unknown"
     if check == "blacklist":
         verdict = data.get("verdict", "clean")
         if not data.get("resolved_ip") and verdict == "clean":
-            return "unknown"  # domain didn't resolve — blacklist result meaningless
+            return "unknown"
         return "critical" if verdict == "critical" else ("warning" if verdict == "listed" else "ok")
     if check == "ssl":
         if not data.get("valid", True):
@@ -93,7 +93,8 @@ class RunScanParams(BaseModel):
 
 @chat.function("run_scan", action_type="write", event="scan.completed",
                effects=["create:scan_result"],
-               description="Trigger an immediate scan for a monitor — checks all domains in parallel, stores a new snapshot. Use when user says 'scan now', 'run now' or 'refresh monitor'.")
+               data_model=MonitorScanResult,
+               description="Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors). Scans ALL domains in that monitor's group. Use ONLY when user explicitly mentions a monitor by name or asks to 'run monitor', 'rescan monitor', 'refresh monitor now'. Do NOT use this for ad-hoc domain checks — for that use domain_full_check instead.")
 async def fn_run_scan(ctx, params: RunScanParams) -> ActionResult:
     try:
         return await _do_run_scan(ctx, params)
@@ -123,13 +124,11 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     domain_results = dict(await asyncio.gather(*[_domain(d) for d in domains]))
 
-    # Check-level counts (for pie chart)
     all_statuses = [r["status"] for dr in domain_results.values() for r in dr.values()]
     counts: dict[str, int] = {"ok": 0, "warning": 0, "critical": 0, "unknown": 0}
     for s in all_statuses:
         counts[s] = counts.get(s, 0) + 1
 
-    # Domain-level counts (for "N/20 OK" display) — same logic as domain_items in UI
     dom_lvl: list[str] = []
     for dr in domain_results.values():
         d_st = [r["status"] for r in dr.values()]
@@ -141,7 +140,6 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
             "unknown"
         )
     dom_counts = {s: dom_lvl.count(s) for s in ("ok", "warning", "critical", "unknown")}
-
     overall = ("critical" if dom_counts["critical"] else
                "warning"  if dom_counts["warning"]  else
                "ok"       if dom_counts["ok"]        else "unknown")
@@ -174,8 +172,11 @@ async def _do_run_scan(ctx, params: RunScanParams) -> ActionResult:
 
     issues = counts["warning"] + counts["critical"]
     return ActionResult.success(
-        data={"snapshot_id": snap.id, "monitor_id": params.monitor_id,
-              "status": overall, "summary": counts, "domains_checked": len(domains)},
+        data=build_monitor_scan(
+            snap_id=snap.id, monitor_id=params.monitor_id, status=overall,
+            summary=counts, domains_checked=len(domains),
+            checks_run=checks,
+        ),
         summary=f"Scan complete: {overall.upper()} — {len(domains)} domain(s), {issues} issue(s)",
         refresh_panels=["sidebar", "overview", "detail"],
     )
@@ -188,7 +189,8 @@ class GetScanResultsParams(BaseModel):
 
 
 @chat.function("get_scan_results", action_type="read",
-               description="Get the latest scan snapshot for a monitor — per-domain per-check verdict (ok/warning/critical), overall status and counts. Use list_monitors to find the monitor_id.")
+               data_model=MonitorScanResult,
+               description="Get last snapshot results for an EXISTING MONITOR (requires monitor_id). Shows per-domain/per-check status from the most recent scheduled scan. Use ONLY when user asks about a specific monitor's results or history. Do NOT use for ad-hoc domain checks — for that use domain_full_check.")
 async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult:
     mon = await ctx.store.get("wt_monitors", params.monitor_id)
     if not mon or mon.data.get("owner_id") != ctx.user.imperal_id:
@@ -203,15 +205,13 @@ async def fn_get_scan_results(ctx, params: GetScanResultsParams) -> ActionResult
         return ActionResult.error("Snapshot not found.", retryable=False)
 
     return ActionResult.success(
-        data={
-            "monitor_id":  params.monitor_id,
-            "snapshot_id": snap.id,
-            "status":      snap.data["status"],
-            "domains":     snap.data["domains"],
-            "checks_run":  snap.data["checks_run"],
-            "summary":     snap.data["summary"],
-            "scanned_at":  snap.data["created_at"],
-        },
+        data=build_monitor_scan(
+            snap_id=snap.id, monitor_id=params.monitor_id,
+            status=snap.data["status"],
+            summary=snap.data.get("summary"),
+            domains_checked=len(snap.data.get("domains", {})),
+            domains=snap.data.get("domains"),
+            checks_run=snap.data.get("checks_run"),
+        ),
         summary=f"Last scan: {snap.data['status'].upper()} on {snap.data['created_at'][:10]}",
     )
-

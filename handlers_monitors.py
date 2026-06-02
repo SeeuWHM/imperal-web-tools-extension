@@ -1,4 +1,4 @@
-"""web-tools · Domain Health Monitors — CRUD + atomic create-full."""
+"""web-tools · Domain Health Monitors — CRUD + atomic create-full (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
 import asyncio
@@ -8,8 +8,13 @@ from pydantic import BaseModel, Field
 
 from app import chat
 from imperal_sdk import ActionResult
+from schemas_sdl_builders import (
+    MonitorEntity, MonitorPage, WtOpResult,
+    build_monitor, build_monitor_page, build_wt_op,
+)
 
 MAX_MONITORS = 5
+
 
 # ─── Create Monitor ────────────────────────────────────────────────────────── #
 
@@ -21,14 +26,13 @@ class CreateMonitorParams(BaseModel):
     interval_hours: int = Field(default=24, description="How often to run checks, in hours (1/6/12/24/48/168)")
 
 
-
-
 class EmptyParams(BaseModel):
     """No parameters — satisfies V17 for parameterless handlers."""
 
 
 @chat.function("create_monitor", action_type="write", event="monitor.created",
                effects=["create:monitor"],
+               data_model=MonitorEntity,
                description=(
                    f"Create a domain health monitor — saves a wt_monitors record that runs "
                    f"DNS/SSL/HTTP/email checks on a domain group at a recurring interval. "
@@ -58,8 +62,13 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
         "created_at":       datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
-        data={"monitor_id": doc.id, "name": params.name,
-              "group": grp.data["name"], "profile": prf.data["name"], "interval_hours": interval},
+        data=build_monitor(
+            monitor_id=doc.id, name=params.name,
+            group_id=params.group_id, profile_id=params.profile_id,
+            interval_hours=interval,
+            domains_count=len(grp.data.get("domains", [])),
+            checks=prf.data.get("checks"),
+        ),
         summary=f"Created domain health monitor '{params.name}' — {grp.data['name']} every {interval}h",
         refresh_panels=["sidebar", "overview"],
     )
@@ -68,7 +77,8 @@ async def fn_create_monitor(ctx, params: CreateMonitorParams) -> ActionResult:
 # ─── List Monitors ─────────────────────────────────────────────────────────── #
 
 @chat.function("list_monitors", action_type="read",
-               description="Show all domain health monitors — name, group, check profile, scan interval and last scan time. Use to find monitor_id for run_scan or update_monitor.")
+               data_model=MonitorPage,
+               description="Show all configured recurring domain monitors (scheduled automation setup). Use ONLY when user explicitly says: 'show my monitors', 'list monitors', 'what am I monitoring', 'manage monitors'. NEVER use this for: DNS lookups, domain checks, 'show records', 'check domain', 'what can webtools do on domain X', loading speed, SSL, blacklists — use dns_lookup, domain_full_check, or geo_check for all of those instead. Monitor NAMES in the database are irrelevant — a monitor named 'DNS monitor' does NOT mean this function should handle DNS record lookups.")
 async def fn_list_monitors(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_monitors", where={"owner_id": ctx.user.imperal_id}, limit=10)
     monitors = [
@@ -85,7 +95,7 @@ async def fn_list_monitors(ctx, params: EmptyParams) -> ActionResult:
         for d in page.data
     ]
     return ActionResult.success(
-        data={"monitors": monitors, "total": len(monitors)},
+        data=build_monitor_page(monitors),
         summary=f"{len(monitors)} domain health monitor(s)",
     )
 
@@ -101,6 +111,7 @@ class UpdateMonitorParams(BaseModel):
 
 @chat.function("update_monitor", action_type="write", event="monitor.updated",
                effects=["update:monitor"],
+               data_model=MonitorEntity,
                description="Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
@@ -117,7 +128,12 @@ async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
     name = updated.data["name"]
     interval = updated.data["interval_hours"]
     return ActionResult.success(
-        data={"monitor_id": params.monitor_id, "name": name, "interval_hours": interval},
+        data=build_monitor(
+            monitor_id=params.monitor_id, name=name,
+            group_id=updated.data.get("group_id", ""),
+            profile_id=updated.data.get("profile_id", ""),
+            interval_hours=interval,
+        ),
         summary=f"Updated monitor '{name}' — every {interval}h",
         refresh_panels=["sidebar", "overview"],
     )
@@ -132,29 +148,28 @@ class DeleteMonitorParams(BaseModel):
 
 @chat.function("delete_monitor", action_type="destructive", event="monitor.deleted",
                effects=["delete:monitor"],
+               data_model=WtOpResult,
                description="Delete a monitor. The domain group and check profile are preserved and can be reused.")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:
     doc = await ctx.store.get("wt_monitors", params.monitor_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Monitor not found.", retryable=False)
     name = doc.data["name"]
-    # Cascade: delete all snapshots for this monitor
     snap_page = await ctx.store.query("wt_snapshots",
                                       where={"owner_id": ctx.user.imperal_id,
                                              "monitor_id": params.monitor_id},
                                       limit=200)
     if snap_page.data:
-        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.data])
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id) for s in snap_page.data])
     await ctx.store.delete("wt_monitors", params.monitor_id)
     return ActionResult.success(
-        data={"monitor_id": params.monitor_id},
+        data=build_wt_op(params.monitor_id, f"Deleted monitor '{name}'"),
         summary=f"Deleted domain health monitor '{name}'",
         refresh_panels=["sidebar", "overview"],
     )
 
 
-# ─── Create Monitor Full (panel: atomic group + profile + monitor) ─────────── #
+# ─── Create Monitor Full (atomic group + profile + monitor) ───────────────── #
 
 _VALID_CHECKS = {"ssl", "http", "email", "blacklist", "geo", "whois", "ports"}
 
@@ -163,10 +178,7 @@ class CreateMonitorFullParams(BaseModel):
     name:           str       = Field(description="Monitor name")
     domains:        list[str] = Field(default_factory=list, description="Domains to monitor (max 20)")
     interval_hours: int       = Field(default=24, description="Scan interval in hours")
-    # Chat callers pass checks as list; panel form passes individual boolean toggles
-    # Defaults match panel form visual defaults (sdk may omit unchanged toggle values)
-    checks:    list[str] = Field(default_factory=list,
-                                  description="Check types (chat API)")
+    checks:    list[str] = Field(default_factory=list, description="Check types (chat API)")
     ssl:       bool = Field(default=True)
     http:      bool = Field(default=True)
     email:     bool = Field(default=True)
@@ -177,24 +189,20 @@ class CreateMonitorFullParams(BaseModel):
 
 @chat.function("create_monitor_full", action_type="write", event="monitor.created",
                effects=["create:monitor", "create:domain_group", "create:check_profile"],
-               description="Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor."
-)
+               data_model=MonitorEntity,
+               description="Create a complete health monitor in one step — name, domains, check types and interval. Atomically creates group + profile + monitor. Prefer this over create_monitor.")
 async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> ActionResult:
     count = await ctx.store.count("wt_monitors", where={"owner_id": ctx.user.imperal_id})
     if count >= MAX_MONITORS:
         return ActionResult.error(f"Limit reached: {MAX_MONITORS} monitors max.", retryable=False)
-
     name = (params.name or "").strip()[:50]
     if not name:
         return ActionResult.error("Monitor name is required.", retryable=False)
-
     domains = list(dict.fromkeys(
         d.strip().lower() for d in (params.domains or []) if d.strip()
     ))[:20]
     if not domains:
         return ActionResult.error("Add at least one domain.", retryable=False)
-
-    # Build checks: from list (chat) or from boolean toggles (panel form)
     checks = list(dict.fromkeys(
         c for c in (params.checks or [
             k for k, v in {
@@ -205,10 +213,8 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
     ))
     if not checks:
         return ActionResult.error("Select at least one check type.", retryable=False)
-
     interval = max(1, int(params.interval_hours or 24))
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
     grp = await ctx.store.create("wt_groups", {
         "owner_id": ctx.user.imperal_id, "name": name,
         "domains": domains, "description": "", "created_at": now,
@@ -224,8 +230,12 @@ async def fn_create_monitor_full(ctx, params: CreateMonitorFullParams) -> Action
         "last_run_at": None, "last_snapshot_id": None, "created_at": now,
     })
     return ActionResult.success(
-        data={"monitor_id": doc.id, "name": name,
-              "domains": len(domains), "checks": checks, "interval_hours": interval},
+        data=build_monitor(
+            monitor_id=doc.id, name=name,
+            group_id=grp.id, profile_id=prf.id,
+            interval_hours=interval,
+            domains_count=len(domains), checks=checks,
+        ),
         summary=f"Created monitor '{name}' — {len(domains)} domain(s), every {interval}h",
         refresh_panels=["sidebar", "overview"],
     )

@@ -1,4 +1,4 @@
-"""web-tools · Domain Groups — CRUD handlers."""
+"""web-tools · Domain Groups — CRUD handlers (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
 import asyncio
@@ -7,8 +7,6 @@ import re
 
 from pydantic import BaseModel, Field
 
-# Minimal domain validation: at least one dot, letters/digits/hyphens on each side.
-# Not a strict TLD check — catches obvious typos like "example", "a..b", "-bad".
 _DOMAIN_RE = re.compile(
     r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?'
     r'(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$'
@@ -16,11 +14,14 @@ _DOMAIN_RE = re.compile(
 
 from app import chat
 from imperal_sdk import ActionResult
-
-# ─── Limits ───────────────────────────────────────────────────────────────── #
+from schemas_sdl_builders import (
+    DomainGroupEntity, DomainGroupPage, WtOpResult,
+    build_domain_group, build_domain_group_page, build_wt_op,
+)
 
 MAX_GROUPS  = 5
 MAX_DOMAINS = 20
+
 
 # ─── Domain Groups ────────────────────────────────────────────────────────── #
 
@@ -34,17 +35,15 @@ class CreateGroupParams(BaseModel):
     description: str = ""
 
 
-
-
 class EmptyParams(BaseModel):
     """No parameters — satisfies V17 for parameterless handlers."""
 
 
 @chat.function("create_domain_group", action_type="write", event="group.created",
                effects=["create:domain_group"],
+               data_model=DomainGroupEntity,
                description=f"Create a named group of domains for monitoring (max {MAX_GROUPS} groups, max {MAX_DOMAINS} domains each). Required before creating a monitor with create_monitor.")
 async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult:
-    # Panel form sends domains_csv (plain text); chat sends domains (list)
     domain_list = params.domains
     if not domain_list and params.domains_csv:
         domain_list = [d.strip() for d in
@@ -71,7 +70,7 @@ async def fn_create_domain_group(ctx, params: CreateGroupParams) -> ActionResult
         "created_at":  datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
-        data={"group_id": doc.id, "name": params.name, "domains": params.domains},
+        data=build_domain_group(doc.id, params.name, domain_list),
         summary=f"Created domain group '{params.name}' with {len(domain_list)} domain(s)",
         refresh_panels=["sidebar", "overview"],
     )
@@ -89,22 +88,21 @@ class UpdateGroupParams(BaseModel):
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
                effects=["update:domain_group"],
+               data_model=DomainGroupEntity,
                description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
     if not doc or doc.data.get("owner_id") != ctx.user.imperal_id:
         return ActionResult.error("Domain group not found.", retryable=False)
     if params.domains:
-        # Full replacement from TagInput panel edit
         new_domains = [d.strip() for d in params.domains if d.strip()]
     elif params.add_domains or params.remove_domains:
-        # Incremental update from chat
         existing = set(doc.data["domains"])
         existing -= set(params.remove_domains)
         existing |= set(params.add_domains)
         new_domains = list(existing)
     else:
-        new_domains = doc.data["domains"]  # no domain change
+        new_domains = doc.data["domains"]
     if new_domains:
         invalid = [d for d in new_domains if not _DOMAIN_RE.match(d)]
         if invalid:
@@ -120,13 +118,14 @@ async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult
         patch["name"] = params.name[:50]
     updated = await ctx.store.update("wt_groups", params.group_id, patch)
     return ActionResult.success(
-        data={"group_id": params.group_id, "name": updated.data["name"], "domains": new_domains},
+        data=build_domain_group(params.group_id, updated.data["name"], new_domains),
         summary=f"Updated domain group '{updated.data['name']}' — {len(new_domains)} domain(s)",
         refresh_panels=["sidebar", "overview"],
     )
 
 
 @chat.function("list_domain_groups", action_type="read",
+               data_model=DomainGroupPage,
                description="Show all domain groups — names, domain lists and domain count. Call before create_monitor to pick the right group_id.")
 async def fn_list_domain_groups(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_groups", where={"owner_id": ctx.user.imperal_id}, limit=10)
@@ -136,7 +135,7 @@ async def fn_list_domain_groups(ctx, params: EmptyParams) -> ActionResult:
         for d in page.data
     ]
     return ActionResult.success(
-        data={"groups": groups, "total": len(groups)},
+        data=build_domain_group_page(groups),
         summary=f"{len(groups)} domain group(s)",
     )
 
@@ -148,6 +147,7 @@ class DeleteGroupParams(BaseModel):
 
 @chat.function("delete_domain_group", action_type="destructive", event="group.deleted",
                effects=["delete:domain_group"],
+               data_model=WtOpResult,
                description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:
     doc = await ctx.store.get("wt_groups", params.group_id)
@@ -166,15 +166,13 @@ async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult
             where={"owner_id": ctx.user.imperal_id, "monitor_id": m.id},
             limit=100,
         )
-        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id)
-                                for s in snap_page.data])
+        await asyncio.gather(*[ctx.store.delete("wt_snapshots", s.id) for s in snap_page.data])
         await ctx.store.delete("wt_monitors", m.id)
 
     await asyncio.gather(*[_delete_monitor(m) for m in mon_page.data])
-
     return ActionResult.success(
-        data={"group_id": params.group_id, "monitors_removed": len(mon_page.data)},
+        data=build_wt_op(params.group_id, f"Deleted group '{name}'",
+                         monitors_removed=len(mon_page.data)),
         summary=f"Deleted group '{name}' and {len(mon_page.data)} monitor(s)",
         refresh_panels=["sidebar", "overview"],
     )
-

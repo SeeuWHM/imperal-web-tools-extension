@@ -1,7 +1,6 @@
-"""web-tools · Diagnostic handlers — Email, Blacklist, Ports, SMTP, Geo, Full Check."""
+"""web-tools · Diagnostic handlers — Email, Blacklist, Ports, SMTP, Geo, Full Check (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
-import asyncio
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -9,6 +8,13 @@ from pydantic import BaseModel, Field, model_validator
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
 from handlers_ui import blacklist_ui, full_audit_ui
+from schemas_sdl_builders import (
+    EmailAuthResult, BlacklistResult, PortScanResult,
+    SmtpResult, GeoCheckResult, DomainAuditResult,
+    build_email_auth, build_blacklist, build_port_scan,
+    build_smtp, build_geo, build_domain_audit,
+)
+
 
 # ─── Email ────────────────────────────────────────────────────────────────── #
 
@@ -26,6 +32,7 @@ class EmailCheckParams(BaseModel):
 
 
 @chat.function("email_check", action_type="read",
+               data_model=EmailAuthResult,
                description="Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.")
 async def fn_email_check(ctx, params: EmailCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
@@ -49,9 +56,9 @@ async def fn_email_check(ctx, params: EmailCheckParams) -> ActionResult:
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success"):
-        return ActionResult.error(body.get("error", "Email check failed"), retryable=False)
+        return ActionResult.error(body.get("error") or "Email check failed", retryable=False)
     return ActionResult.success(
-        data={"domain": params.domain, "check_type": params.check_type, "result": body["data"]},
+        data=build_email_auth(params.domain, params.check_type, body["data"]),
         summary=f"Email {params.check_type} for {params.domain}",
     )
 
@@ -68,15 +75,16 @@ class BlacklistParams(BaseModel):
 
 
 @chat.function("blacklist_check", action_type="read",
+               data_model=BlacklistResult,
                description="Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL. Returns verdict: clean / listed / critical.")
 async def fn_blacklist_check(ctx, params: BlacklistParams) -> ActionResult:
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/blacklist/{params.target_type}/{params.target}")
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success"):
-        return ActionResult.error(body.get("error", "Blacklist check failed"), retryable=False)
+        return ActionResult.error(body.get("error") or "Blacklist check failed", retryable=False)
     return ActionResult.success(
-        data={"target": params.target, "type": params.target_type, "result": body["data"]},
+        data=build_blacklist(params.target, params.target_type, body["data"]),
         summary=f"Blacklist check for {params.target}",
         ui=blacklist_ui(params.target, body["data"] or {}),
     )
@@ -95,6 +103,7 @@ class PortScanParams(BaseModel):
 
 
 @chat.function("port_scan", action_type="read",
+               data_model=PortScanResult,
                description="TCP port check — single port status (open/closed/filtered) or preset scan: web (80/443/8080/8443), mail (25/587/465/993/995), database (3306/5432/6379), all.")
 async def fn_port_scan(ctx, params: PortScanParams) -> ActionResult:
     base = WEB_TOOLS_URL
@@ -108,9 +117,9 @@ async def fn_port_scan(ctx, params: PortScanParams) -> ActionResult:
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success"):
-        return ActionResult.error(body.get("error", "Port scan failed"), retryable=False)
+        return ActionResult.error(body.get("error") or "Port scan failed", retryable=False)
     return ActionResult.success(
-        data={"host": params.host, "result": body["data"]},
+        data=build_port_scan(params.host, body["data"]),
         summary=summary,
     )
 
@@ -124,6 +133,7 @@ class SmtpTestParams(BaseModel):
 
 
 @chat.function("smtp_test", action_type="read",
+               data_model=SmtpResult,
                description="SMTP server test — connects via MX record or direct host, verifies EHLO/STARTTLS/AUTH support, reads server banner. Use to diagnose email delivery problems.")
 async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
     base = WEB_TOOLS_URL
@@ -135,9 +145,9 @@ async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success"):
-        return ActionResult.error(body.get("error", "SMTP test failed"), retryable=False)
+        return ActionResult.error(body.get("error") or "SMTP test failed", retryable=False)
     return ActionResult.success(
-        data={"target": params.target, "result": body["data"]},
+        data=build_smtp(params.target, body["data"]),
         summary=f"SMTP test for {params.target}",
     )
 
@@ -166,7 +176,8 @@ class GeoCheckParams(BaseModel):
 
 
 @chat.function("geo_check", action_type="read",
-               description="Multi-region probe from EU/US/SG/MD — DNS resolution + anycast mismatch, ping latency, HTTP availability, SSL validity, MTR traceroute, independently per region.")
+               data_model=GeoCheckResult,
+               description="Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). Use when user asks: 'loading speed from America/Asia/Europe', 'is site accessible from US', 'latency from Singapore', 'down for users in another country', 'скорость загрузки с Америки/Азии'. check_type=ping = latency from each region (ms). check_type=http = HTTP response time and status from each region (use for 'loading speed'). check_type=dns = DNS resolution consistency per region (finds anycast/Cloudflare issues). check_type=ssl = SSL reachability per region. check_type=traceroute = network path per region. check_type=full = ALL probes from all 4 regions in one call. NOTE: tests REACHABILITY and SPEED, not quality — for certificate grade use ssl_check, for header quality use http_check.")
 async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
     base = WEB_TOOLS_URL
     if params.check_type == "dns":
@@ -177,9 +188,9 @@ async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
     resp.raise_for_status()
     body = resp.json()
     if not body.get("success"):
-        return ActionResult.error(body.get("error", "Geo check failed"), retryable=False)
+        return ActionResult.error(body.get("error") or "Geo check failed", retryable=False)
     return ActionResult.success(
-        data={"target": params.target, "check_type": params.check_type, "regions": body["data"]},
+        data=build_geo(params.target, params.check_type, body["data"]),
         summary=f"Geo {params.check_type} for {params.target} (EU/US/SG/MD)",
     )
 
@@ -196,34 +207,13 @@ class DomainFullCheckParams(BaseModel):
 
 
 @chat.function("domain_full_check", action_type="read",
-               description="Complete domain audit — runs DNS+SSL+WHOIS+HTTP+email+blacklist+geo in parallel in one call. Use when user asks for full site health, domain report or audit.")
+               data_model=DomainAuditResult,
+               description="INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.")
 async def fn_domain_full_check(ctx, params: DomainFullCheckParams) -> ActionResult:
-    check_urls = {
-        "dns":       f"/v1/dns/all/{params.domain}",
-        "ssl":       f"/v1/ssl/{params.domain}",
-        "whois":     f"/v1/whois/{params.domain}/quick",
-        "http":      f"/v1/http/headers/{params.domain}/grade",
-        "email":     f"/v1/email/full/{params.domain}",
-        "blacklist": f"/v1/blacklist/domain/{params.domain}",
-        "geo":       f"/v1/geo/full/{params.domain}",
-    }
-
-    async def _check(name: str) -> tuple[str, object]:
-        try:
-            resp = await ctx.http.get(f"{WEB_TOOLS_URL}{check_urls[name]}")
-            body = resp.json()
-            return name, body.get("data") if body.get("success") else {"error": body.get("error")}
-        except Exception as exc:
-            return name, {"error": str(exc)}
-
-    sem = asyncio.Semaphore(5)
-
-    async def _limited(name: str) -> tuple[str, object]:
-        async with sem:
-            return await _check(name)
-
-    results = dict(await asyncio.gather(*[_limited(c) for c in params.checks]))
+    from handlers_scan import _run_domain_checks
+    results = await _run_domain_checks(ctx, params.domain, params.checks)
     return ActionResult.success(
-        data={"domain": params.domain, "checks": results},
+        data=build_domain_audit(params.domain, results),
         summary=f"Full audit for {params.domain} ({len(params.checks)} checks completed)",
+        ui=full_audit_ui(params.domain, results),
     )

@@ -110,18 +110,31 @@ def full_audit_ui(domain: str, results: dict) -> ui.UINode:
 def _check_detail(check: str, data: dict) -> str:
     if not isinstance(data, dict):
         return str(data)[:60]
+    # _run_domain_checks wraps results as {status, data} — unwrap inner data for details
+    inner = data.get("data") if "data" in data else data
+    if data.get("error"):
+        return f"Error: {str(data.get('error'))[:50]}"
+    if not isinstance(inner, dict):
+        return str(inner)[:60] if inner else "—"
     if check == "ssl":
-        return f"Grade {data.get('grade','?')}, expires in {data.get('days_until_expiry','?')}d"
+        return f"Grade {inner.get('grade','?')}, expires in {inner.get('days_until_expiry','?')}d"
     if check == "http":
-        return f"Grade {data.get('grade','?')}, score {data.get('score','?')}/100"
+        return f"Grade {inner.get('grade','?')}, score {inner.get('score','?')}/100"
     if check == "blacklist":
-        return f"Verdict: {data.get('verdict','unknown')}"
+        return f"Verdict: {inner.get('verdict','unknown')}"
     if check == "dns":
-        records = data.get("records", {})
+        records = inner.get("records", {})
         return f"{len(records) if isinstance(records, (dict,list)) else '?'} records"
     if check == "email":
-        spf  = "SPF " + ("✓" if data.get("spf") else "✗")
-        dkim = "DKIM " + ("✓" if data.get("dkim") else "✗")
-        dmarc= "DMARC " + ("✓" if data.get("dmarc") else "✗")
+        spf  = "SPF "  + ("✓" if inner.get("spf")   else "✗")
+        dkim = "DKIM " + ("✓" if inner.get("dkim")  else "✗")
+        dmarc= "DMARC "+ ("✓" if inner.get("dmarc") else "✗")
         return f"{spf} · {dkim} · {dmarc}"
-    return str(data)[:60]
+    if check == "geo":
+        http = inner.get("http", {})
+        regions = http.get("regions", {}) if isinstance(http, dict) else {}
+        return f"{len(regions)} region(s) probed"
+    if check == "whois":
+        registrar = inner.get("registrar", inner.get("org", "?"))
+        return f"Registrar: {str(registrar)[:40]}"
+    return str(inner)[:60]

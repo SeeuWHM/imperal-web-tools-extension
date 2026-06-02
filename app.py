@@ -1,8 +1,7 @@
-"""web-tools · Web Diagnostics Extension."""
+"""web-tools · Web Diagnostics Extension (SDK v5.2.0 / SDL)."""
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from imperal_sdk import Extension
 from imperal_sdk.chat import ChatExtension
@@ -11,7 +10,7 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.4.4",
+    version="1.5.0",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
@@ -23,39 +22,35 @@ ext = Extension(
     capabilities=["store:read", "store:write"],
 )
 
-# Defensive guard: if the SDK ever auto-registers secrets in __init__, override its slot.
-# The authoritative fix is @ext.panel("secrets", slot="overlay") in panels.py.
-try:
-    if "secrets" in ext._panels:
-        ext._panels["secrets"]["slot"] = "overlay"
-except (AttributeError, TypeError):
-    pass
-
 # URL of the web-tools-api backend. Override via env var for self-hosted deployments.
 WEB_TOOLS_URL = os.getenv("WEB_TOOLS_API_URL", "https://api.webhostmost.com/web-tools")
 
-_SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.txt").read_text()
-
+# SDK 5.0.0+: ChatExtension is a @chat.function bundle — no LLM router, no system_prompt.
+# LLM guidance lives in Extension(description=...) + per-@chat.function(description=...).
 chat = ChatExtension(
     ext=ext,
     tool_name="tool_web_tools_chat",
     description=(
-        "Web diagnostics and domain health monitoring — DNS A AAAA MX NS TXT CNAME SRV DNSSEC "
-        "propagation authoritative nameserver, SSL grade A-F expiry chain SANs TLS versions, "
-        "WHOIS domain registrar dates nameservers IP ASN org network, HTTP security headers grade "
-        "A+ to F HSTS CSP XFO missing headers redirects chain status response time, SEO meta tags "
-        "title description robots.txt sitemap.xml Google indexing, email SPF DMARC DKIM BIMI grade "
-        "A-F generate records trace headers find originating IP, blacklist 29 DNSBL Spamhaus ZEN SBL "
-        "XBL SpamCop Barracuda SURBL verdict clean listed critical, TCP ports web mail database all "
-        "presets single port open closed filtered, SMTP test MX 587 25 465 STARTTLS AUTH banner, "
-        "multi-region geo probe EU US SG MD ping latency HTTP availability DNS mismatch anycast SSL "
-        "MTR traceroute, network ping traceroute PTR reverse DNS IP geolocation ASN WHOIS prefixes, "
-        "domain health monitors recurring automated scan schedule hourly daily weekly, "
-        "create_monitor_full one-step monitor setup domains checks interval, "
-        "run_scan_tool bulk domain scan toggles ssl http email blacklist geo whois smtp propagation, "
-        "run_ip_scan bulk IP scan ip_lookup blacklist reverse ports geo_ping"
+        "Web Tools extension has two modes: "
+        "1) INSTANT DIAGNOSTICS (no setup needed, works on any domain/IP right now): "
+        "domain_full_check=full audit table in one call; "
+        "dns_lookup=DNS records A/MX/NS/TXT/CNAME/DNSSEC/propagation; "
+        "ssl_check=certificate quality grade A-F expiry chain; "
+        "http_check=security headers grade HSTS CSP XFO missing headers; "
+        "whois_lookup=registrar dates nameservers for domain or ASN org for IP; "
+        "seo_check=meta tags robots.txt sitemap Google indexing; "
+        "email_check=SPF DMARC DKIM BIMI grade generate records trace headers; "
+        "blacklist_check=29 DNSBL spam lists verdict clean/listed/critical; "
+        "port_scan=TCP ports web/mail/database presets or single port; "
+        "smtp_test=SMTP connectivity STARTTLS AUTH banner; "
+        "geo_check=reachability FROM EU/US/SG/MD ping latency HTTP DNS SSL per region; "
+        "network_check=ping traceroute for domains; ip_lookup reverse_dns ASN for IPs only. "
+        "2) RECURRING MONITORS (scheduled automation for own domains): "
+        "create_monitor_full=set up automated domain monitoring; "
+        "list_monitors=show existing scheduled monitors; "
+        "run_scan=trigger immediate scan on an existing monitor; "
+        "run_scan_tool=bulk scan up to 10 domains; run_ip_scan=bulk scan up to 5 IPs."
     ),
-    system_prompt=_SYSTEM_PROMPT,
 )
 
 # ─── Health Check ─────────────────────────────────────────────────────────── #

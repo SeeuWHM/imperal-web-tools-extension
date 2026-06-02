@@ -1,4 +1,4 @@
-"""web-tools · Check Profiles — CRUD handlers."""
+"""web-tools · Check Profiles — CRUD handlers (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
 import asyncio
@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 
 from app import chat
 from imperal_sdk import ActionResult
+from schemas_sdl_builders import (
+    CheckProfileEntity, CheckProfilePage, WtOpResult,
+    build_check_profile, build_check_profile_page, build_wt_op,
+)
 
 MAX_PROFILES = 5
 MAX_CHECKS   = 5
@@ -19,7 +23,6 @@ _VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo"}
 class CreateProfileParams(BaseModel):
     """Create check profile parameters."""
     name: str = Field(description="Profile name")
-    # Panel sends individual booleans via Toggle (SDK 1.5.8 GAP-2 fix)
     panel_mode: bool = Field(default=False, description="True when sent from panel toggles")
     ssl:        bool = Field(default=False)
     http:       bool = Field(default=False)
@@ -28,12 +31,9 @@ class CreateProfileParams(BaseModel):
     geo:        bool = Field(default=False)
     whois:      bool = Field(default=False)
     dns:        bool = Field(default=False)
-    # Chat sends list or legacy CSV
     checks:     list[str] = Field(default_factory=list,
                                   description=f"Check types (max {MAX_CHECKS}): ssl/http/email/blacklist/geo/whois/dns")
     checks_csv: str = Field(default="", description="Comma-separated check types (legacy)")
-
-
 
 
 class EmptyParams(BaseModel):
@@ -42,6 +42,7 @@ class EmptyParams(BaseModel):
 
 @chat.function("create_check_profile", action_type="write", event="profile.created",
                effects=["create:check_profile"],
+               data_model=CheckProfileEntity,
                description=f"Create a check profile — defines which checks (ssl/http/email/blacklist/geo/whois/dns) run per domain in a monitor (max {MAX_PROFILES} profiles, max {MAX_CHECKS} checks each).")
 async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionResult:
     if params.panel_mode:
@@ -69,7 +70,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
     return ActionResult.success(
-        data={"profile_id": doc.id, "name": params.name, "checks": deduped},
+        data=build_check_profile(doc.id, params.name, deduped),
         summary=f"Created check profile '{params.name}': {', '.join(deduped)}",
         refresh_panels=["sidebar", "overview"],
     )
@@ -78,6 +79,7 @@ async def fn_create_check_profile(ctx, params: CreateProfileParams) -> ActionRes
 # ─── List ─────────────────────────────────────────────────────────────────── #
 
 @chat.function("list_check_profiles", action_type="read",
+               data_model=CheckProfilePage,
                description="Show all check profiles — names and enabled check types. Call before create_monitor to pick the right profile_id.")
 async def fn_list_check_profiles(ctx, params: EmptyParams) -> ActionResult:
     page = await ctx.store.query("wt_profiles", where={"owner_id": ctx.user.imperal_id}, limit=10)
@@ -86,7 +88,7 @@ async def fn_list_check_profiles(ctx, params: EmptyParams) -> ActionResult:
         for d in page.data
     ]
     return ActionResult.success(
-        data={"profiles": profiles, "total": len(profiles)},
+        data=build_check_profile_page(profiles),
         summary=f"{len(profiles)} check profile(s)",
     )
 
@@ -97,7 +99,6 @@ class UpdateProfileParams(BaseModel):
     """Update check profile — rename or change check types."""
     profile_id: str
     name: str = Field(default="", description="New name (empty = keep current)")
-    # Panel sends individual booleans via Toggle
     panel_mode: bool = Field(default=False)
     ssl:        bool = Field(default=False)
     http:       bool = Field(default=False)
@@ -106,13 +107,13 @@ class UpdateProfileParams(BaseModel):
     geo:        bool = Field(default=False)
     whois:      bool = Field(default=False)
     dns:        bool = Field(default=False)
-    # Chat sends list
     checks: list[str] = Field(default_factory=list,
                               description="New check list (empty = keep current)")
 
 
 @chat.function("update_check_profile", action_type="write", event="profile.updated",
                effects=["update:check_profile"],
+               data_model=CheckProfileEntity,
                description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
@@ -135,11 +136,10 @@ async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionRes
     if not patch:
         return ActionResult.error("Nothing to update.", retryable=False)
     updated = await ctx.store.update("wt_profiles", params.profile_id, patch)
-    checks_str = ", ".join(updated.data.get("checks", []))
     return ActionResult.success(
-        data={"profile_id": params.profile_id, "name": updated.data["name"],
-              "checks": updated.data.get("checks", [])},
-        summary=f"Updated profile '{updated.data['name']}': {checks_str}",
+        data=build_check_profile(params.profile_id, updated.data["name"],
+                                 updated.data.get("checks", [])),
+        summary=f"Updated profile '{updated.data['name']}': {', '.join(updated.data.get('checks', []))}",
         refresh_panels=["sidebar", "overview"],
     )
 
@@ -153,6 +153,7 @@ class DeleteProfileParams(BaseModel):
 
 @chat.function("delete_check_profile", action_type="destructive", event="profile.deleted",
                effects=["delete:check_profile"],
+               data_model=WtOpResult,
                description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:
     doc = await ctx.store.get("wt_profiles", params.profile_id)
@@ -174,7 +175,8 @@ async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionRes
 
     await asyncio.gather(*[_del_mon(m) for m in mon_page.data])
     return ActionResult.success(
-        data={"profile_id": params.profile_id, "monitors_removed": len(mon_page.data)},
+        data=build_wt_op(params.profile_id, f"Deleted profile '{name}'",
+                         monitors_removed=len(mon_page.data)),
         summary=f"Deleted profile '{name}' and {len(mon_page.data)} monitor(s)",
         refresh_panels=["sidebar", "overview"],
     )
