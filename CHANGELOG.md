@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0] — 2026-06-03 (actualized)
+
+### Routing fixes (critical)
+- **`skeleton.py`** — aggregate health counts only (`total/critical/warning/ok/unknown`), NO monitor names. Previously monitor names like "Монитор DNS-записей" leaked into the classifier envelope causing `list_monitors` to fire on plain DNS queries.
+- **`domain_full_check`** — now wired to `full_audit_ui` (was built but never called → empty table). Now uses `_run_domain_checks` for consistent `ok/warning/critical` status per check.
+- **`propagation_type`** — `Literal[...] | None`, `None`-safe. Was crashing with `VALIDATION_MISSING_FIELD` when LLM passed `null`.
+- **`ChatExtension` description** — split into two labelled sections: INSTANT DIAGNOSTICS vs RECURRING MONITORS. Previously LLM routed "check this domain" to monitors.
+- **Function descriptions** — all geo/ssl/http/dns/network descriptions now clearly separate: `geo_check` = reachability from 4 regions; `ssl_check`/`http_check` = quality grade.
+- **`handlers_bulk.py`** — `run_scan_tool` + `run_ip_scan` split from `handlers_quick.py` (300-line rule).
+- **`.bak/` dirs** — removed from git tracking (37 files); added to `.gitignore`.
+- **`@ext.on_install`** — added (fixes V12 validator warning).
+- **`return_schema`** — populated via `imperal build` (all 31 tools now carry `x-sdl: "entity"` + `x-sdl-role` per field in manifest).
+- **`sdk_version`** — `5.2.0` → `5.2.1` (PyPI published version used by `imperal build`).
+
 ## [1.5.0] — 2026-06-01
 
 ### SDL migration (SDK 5.2.0 — Structured Data Layer)
