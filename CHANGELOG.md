@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.1] — 2026-06-09
+
+### Bugfix (critical) — `domain_full_check` cross-extension module collision
+- **`handlers_diag.py`** — `domain_full_check` failed with `cannot import name 'WEB_TOOLS_URL' from 'app' (/opt/extensions/microsoft-ads/app.py)` (prod log 2026-06-08 13:43Z). Root cause: a **call-time lazy import** `from handlers_scan import _run_domain_checks` inside the handler. The kernel loader (`I-EXT-MODULE-ISOLATION`) rebinds bare sibling module names to an ext-unique namespace after load; re-importing a sibling at dispatch re-resolved bare `app` to whichever extension last owned it. Fix: **hoist the import to module load time** + wrap the handler body in try/except → `ActionResult.error(retryable=True)`. Individual checks were unaffected (they bind `WEB_TOOLS_URL` at load). NOT a packaging change — the kernel loads flat modules, not Python packages.
+
 ## [1.5.0] — 2026-06-03 (actualized)
 
 ### Routing fixes (critical)

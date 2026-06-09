@@ -14,6 +14,13 @@ from schemas_sdl_builders import (
     build_email_auth, build_blacklist, build_port_scan,
     build_smtp, build_geo, build_domain_audit,
 )
+# Import at MODULE LOAD time (not lazily inside the handler). The kernel loader
+# (I-EXT-MODULE-ISOLATION) rebinds bare sibling module names to an ext-unique
+# namespace after load; a call-time `from handlers_scan import ...` would be
+# re-resolved against whichever extension currently owns the bare `app` name,
+# causing `cannot import name 'WEB_TOOLS_URL' from 'app'`. Loading here keeps
+# the binding correct and namespaced as a unit.
+from handlers_scan import _run_domain_checks
 
 
 # ─── Email ────────────────────────────────────────────────────────────────── #
@@ -216,10 +223,12 @@ class DomainFullCheckParams(BaseModel):
                description="INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.")
 async def fn_domain_full_check(ctx, params: DomainFullCheckParams) -> ActionResult:
     """INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain."""
-    from handlers_scan import _run_domain_checks
-    results = await _run_domain_checks(ctx, params.domain, params.checks)
-    return ActionResult.success(
-        data=build_domain_audit(params.domain, results),
-        summary=f"Full audit for {params.domain} ({len(params.checks)} checks completed)",
-        ui=full_audit_ui(params.domain, results),
-    )
+    try:
+        results = await _run_domain_checks(ctx, params.domain, params.checks)
+        return ActionResult.success(
+            data=build_domain_audit(params.domain, results),
+            summary=f"Full audit for {params.domain} ({len(params.checks)} checks completed)",
+            ui=full_audit_ui(params.domain, results),
+        )
+    except Exception as exc:
+        return ActionResult.error(f"Domain audit failed: {exc}", retryable=True)
