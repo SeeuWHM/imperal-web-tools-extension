@@ -10,7 +10,7 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.5.1",
+    version="1.6.0",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
@@ -33,7 +33,8 @@ chat = ChatExtension(
     description=(
         "Web Tools extension has two modes: "
         "1) INSTANT DIAGNOSTICS (no setup needed, works on any domain/IP right now): "
-        "domain_full_check=full audit table in one call; "
+        "domain_full_check=full audit table for ONE domain in one call; "
+        "audit_domains=bulk audit of MANY domains (up to 25) in one call; "
         "dns_lookup=DNS records A/MX/NS/TXT/CNAME/DNSSEC/propagation; "
         "ssl_check=certificate quality grade A-F expiry chain; "
         "http_check=security headers grade HSTS CSP XFO missing headers; "

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from schemas_sdl import (
     DomainCheckResult, SslResult, EmailAuthResult, BlacklistResult,
-    PortScanResult, SmtpResult, GeoCheckResult, DomainAuditResult,
+    PortScanResult, SmtpResult, GeoCheckResult, DomainAuditResult, DomainAuditPage,
     ScanOpResult, PanelDataResult, MonitorScanResult,
     MonitorEntity, MonitorPage,
     DomainGroupEntity, DomainGroupPage,
@@ -19,7 +19,7 @@ from schemas_sdl import (
 
 __all__ = [
     "DomainCheckResult", "SslResult", "EmailAuthResult", "BlacklistResult",
-    "PortScanResult", "SmtpResult", "GeoCheckResult", "DomainAuditResult",
+    "PortScanResult", "SmtpResult", "GeoCheckResult", "DomainAuditResult", "DomainAuditPage",
     "ScanOpResult", "PanelDataResult", "MonitorScanResult",
     "MonitorEntity", "MonitorPage",
     "DomainGroupEntity", "DomainGroupPage",
@@ -27,6 +27,7 @@ __all__ = [
     "WtOpResult",
     "build_domain_check", "build_ssl", "build_email_auth", "build_blacklist",
     "build_port_scan", "build_smtp", "build_geo", "build_domain_audit",
+    "build_domain_audit_page",
     "build_scan_op", "build_panel_data", "build_monitor_scan",
     "build_monitor", "build_monitor_page",
     "build_domain_group", "build_domain_group_page",
@@ -135,6 +136,12 @@ def build_domain_audit(domain: str, results: dict) -> DomainAuditResult:
         domain=domain,
         check_results=results,
     )
+
+
+def build_domain_audit_page(per_domain: list[tuple[str, dict]]) -> DomainAuditPage:
+    """Wrap a list of (domain, check_results) into a DomainAuditPage EntityList."""
+    items = [build_domain_audit(domain, results) for domain, results in per_domain]
+    return DomainAuditPage(items=items, total=len(items))
 
 
 def build_scan_op(target: str, preset: str, scanned: int,

@@ -137,4 +137,10 @@ def _check_detail(check: str, data: dict) -> str:
     if check == "whois":
         registrar = inner.get("registrar", inner.get("org", "?"))
         return f"Registrar: {str(registrar)[:40]}"
+    if check == "seo":
+        issues = inner.get("issues") or []
+        n = len(issues) if isinstance(issues, (list, dict)) else issues
+        return "No meta issues" if not n else f"{n} meta issue(s)"
+    if check == "smtp":
+        return "Reachable" if inner.get("reachable") else "Not reachable"
     return str(inner)[:60]

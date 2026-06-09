@@ -1,13 +1,14 @@
 """web-tools · Diagnostic handlers — Email, Blacklist, Ports, SMTP, Geo, Full Check (SDK 5.2.0 / SDL)."""
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
-from handlers_ui import blacklist_ui, full_audit_ui
+from handlers_ui import blacklist_ui, full_audit_ui, _check_detail
 from schemas_sdl_builders import (
     EmailAuthResult, BlacklistResult, PortScanResult,
     SmtpResult, GeoCheckResult, DomainAuditResult,
@@ -21,6 +22,8 @@ from schemas_sdl_builders import (
 # causing `cannot import name 'WEB_TOOLS_URL' from 'app'`. Loading here keeps
 # the binding correct and namespaced as a unit.
 from handlers_scan import _run_domain_checks
+
+log = logging.getLogger(__name__)
 
 
 # ─── Email ────────────────────────────────────────────────────────────────── #
@@ -212,23 +215,47 @@ async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
 class DomainFullCheckParams(BaseModel):
     """Full parallel domain audit parameters."""
     domain: str
-    checks: list[Literal["dns", "ssl", "whois", "http", "email", "blacklist", "geo"]] = Field(
+    checks: list[Literal["dns", "ssl", "whois", "http", "email", "blacklist", "geo", "seo", "ports", "smtp"]] = Field(
         default=["dns", "ssl", "http", "email", "blacklist"],
-        description="Checks to run in parallel. Add 'geo' for multi-region probe (slowest). Add 'whois' for ownership data.",
+        description="Checks to run in parallel. Defaults to dns+ssl+http+email+blacklist. Add 'geo' for multi-region reachability (slowest), 'whois' for ownership, 'seo' for meta/title issues, 'ports' for open-port scan, 'smtp' for mail-server connectivity.",
+    )
+    include_raw: bool = Field(
+        False,
+        description="When false (default) the data payload carries only per-check status + a one-line summary (compact). Set true to also return the full raw check results (large — only when explicitly asked for raw data).",
     )
 
 
 @chat.function("domain_full_check", action_type="read",
                data_model=DomainAuditResult,
-               description="INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.")
+               description="INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Optional extra checks: 'geo' (reachability from EU/US/SG/MD), 'whois' (ownership), 'seo' (meta/title issues), 'ports' (open ports), 'smtp' (mail-server connectivity). Returns a compact per-check status summary by default; set include_raw=true only when the user explicitly wants the full raw data. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.")
 async def fn_domain_full_check(ctx, params: DomainFullCheckParams) -> ActionResult:
     """INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain."""
     try:
         results = await _run_domain_checks(ctx, params.domain, params.checks)
+        # Compact data payload (default): per-check status + one-line summary, no raw blobs.
+        # The full audit table (full_audit_ui) is always rendered from the full results;
+        # raw per-check payloads are only echoed into data when explicitly requested.
+        if params.include_raw:
+            payload = results
+        else:
+            payload = {
+                check: {
+                    "status": (data.get("status", "unknown") if isinstance(data, dict) else "unknown"),
+                    "summary": _check_detail(check, data),
+                }
+                for check, data in results.items()
+            }
+        issues = sum(
+            1 for d in results.values()
+            if isinstance(d, dict) and d.get("status") in ("warning", "critical")
+        )
         return ActionResult.success(
-            data=build_domain_audit(params.domain, results),
-            summary=f"Full audit for {params.domain} ({len(params.checks)} checks completed)",
+            data=build_domain_audit(params.domain, payload),
+            summary=f"Full audit for {params.domain} — {len(params.checks)} check(s), {issues} issue(s)",
             ui=full_audit_ui(params.domain, results),
         )
     except Exception as exc:
-        return ActionResult.error(f"Domain audit failed: {exc}", retryable=True)
+        log.error("domain_full_check failed for %s: %s", params.domain, exc)
+        return ActionResult.error(
+            "Domain audit failed — please try again.", retryable=True,
+        )

@@ -74,6 +74,12 @@ class DomainAuditResult(sdl.Entity, sdl.NetAsset):
     check_results: dict | None = sdl_field(role="wt.check_results")
 
 
+class DomainAuditPage(sdl.EntityList[DomainAuditResult]):
+    """Bulk multi-domain audit — one DomainAuditResult per domain."""
+
+    pass
+
+
 # ── Scan operation results ─────────────────────────────────────────────────────
 
 class ScanOpResult(sdl.Entity, sdl.Timestamped):

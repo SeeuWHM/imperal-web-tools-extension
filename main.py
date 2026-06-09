@@ -13,7 +13,8 @@ for _m in list(sys.modules):
     if _m in ("app", "schemas_sdl", "schemas_sdl_builders",
               "handlers", "handlers_diag", "handlers_groups",
               "handlers_profiles", "handlers_monitors", "handlers_scan",
-              "handlers_ui", "handlers_quick", "handlers_bulk", "handlers_schedule",
+              "handlers_ui", "handlers_quick", "handlers_bulk", "handlers_audit",
+              "handlers_schedule",
               "skeleton", "panels_ui", "panels_ui_base", "panels_ui_items",
               "panels_left", "panels_overview", "panels_detail", "panels_setup",
               "panels"):
@@ -34,6 +35,7 @@ import handlers_scan          # noqa: F401
 import handlers_ui             # noqa: F401
 import handlers_quick          # noqa: F401
 import handlers_bulk           # noqa: F401
+import handlers_audit          # noqa: F401
 import handlers_schedule      # noqa: F401
 import skeleton               # noqa: F401
 import panels_ui              # noqa: F401

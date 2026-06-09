@@ -43,6 +43,10 @@ def _check_status(check: str, data: dict) -> str:
         return "ok"
     if check == "smtp":
         return "ok" if data.get("reachable") else "warning"
+    if check == "seo":
+        # meta endpoint reports title/description issues; any issue → warning
+        issues = data.get("issues") or []
+        return "warning" if issues else "ok"
     if check == "propagation":
         return "ok" if data.get("fully_propagated", True) else "warning"
     return "ok"
@@ -62,13 +66,16 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
         "geo":         f"{base}/v1/geo/full/{domain}",
         "ports":       f"{base}/v1/ports/scan/{domain}",
         "smtp":        f"{base}/v1/smtp/test/{domain}",
+        "seo":         f"{base}/v1/seo/meta",
         "propagation": f"{base}/v1/dns/propagation/{domain}",
     }
+    # Checks whose endpoint takes the target as a query param, not a path segment.
+    query = {"seo": {"url": domain}}
 
     async def _one(check: str) -> tuple[str, dict]:
         async with sem:
             try:
-                resp = await ctx.http.get(urls[check])
+                resp = await ctx.http.get(urls[check], params=query.get(check))
                 body = resp.json()
                 d = body.get("data") if body.get("success") else None
                 return check, {"status": _check_status(check, d or {}), "data": d}
