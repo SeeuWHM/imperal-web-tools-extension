@@ -113,6 +113,7 @@ class UpdateMonitorParams(BaseModel):
 
 @chat.function("update_monitor", action_type="write", event="monitor.updated",
                effects=["update:monitor"],
+               id_projection="monitor_id",
                data_model=MonitorEntity,
                description="Rename a monitor or change its scan interval. Does not change domains or checks — use update_domain_group or update_check_profile for that.")
 async def fn_update_monitor(ctx, params: UpdateMonitorParams) -> ActionResult:
@@ -151,6 +152,7 @@ class DeleteMonitorParams(BaseModel):
 
 @chat.function("delete_monitor", action_type="destructive", event="monitor.deleted",
                effects=["delete:monitor"],
+               id_projection="monitor_id",
                data_model=WtOpResult,
                description="Delete a monitor. The domain group and check profile are preserved and can be reused.")
 async def fn_delete_monitor(ctx, params: DeleteMonitorParams) -> ActionResult:

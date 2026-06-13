@@ -80,7 +80,11 @@ async def fn_audit_domains(ctx, params: AuditDomainsParams) -> ActionResult:
         norm: dict = {}
         for check, outcome in checks_out.items():
             raw = outcome.get("data") if isinstance(outcome, dict) else None
-            ok = bool(outcome.get("ok")) if isinstance(outcome, dict) else False
+            # Accept both "ok" and "success" as the per-check success flag from the backend.
+            # Fall back to inferring success from data presence when neither flag exists.
+            ok = bool(
+                outcome.get("ok") or outcome.get("success") or (raw is not None)
+            ) if isinstance(outcome, dict) else False
             status = _check_status(check, raw or {}) if ok else "unknown"
             if status in ("warning", "critical"):
                 issues += 1

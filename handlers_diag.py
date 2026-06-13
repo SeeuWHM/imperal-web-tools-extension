@@ -191,7 +191,17 @@ class GeoCheckParams(BaseModel):
 
 @chat.function("geo_check", action_type="read",
                data_model=GeoCheckResult,
-               description="Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). Use when user asks: 'loading speed from America/Asia/Europe', 'is site accessible from US', 'latency from Singapore', 'down for users in another country', 'скорость загрузки с Америки/Азии'. check_type=ping = latency from each region (ms). check_type=http = HTTP response time and status from each region (use for 'loading speed'). check_type=dns = DNS resolution consistency per region (finds anycast/Cloudflare issues). check_type=ssl = SSL reachability per region. check_type=traceroute = network path per region. check_type=full = ALL probes from all 4 regions in one call. NOTE: tests REACHABILITY and SPEED, not quality — for certificate grade use ssl_check, for header quality use http_check.")
+               description="Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). "
+               "ROUTING RULES — pick check_type based on what the user is asking: "
+               "→ 'loading speed', 'response time', 'скорость загрузки', 'how fast from X country' → check_type=http (HTTP response time + status per region). "
+               "→ 'latency', 'ping', 'ms from region', 'reachable from X' → check_type=ping (RTT ms + packet loss per region). "
+               "→ 'dns from different countries', 'dns propagation per region', 'different DNS results per location' → check_type=dns. "
+               "→ 'ssl from different regions', 'ssl reachable from US' → check_type=ssl. "
+               "→ 'traceroute', 'network path', 'routing path from region' → check_type=traceroute. "
+               "→ 'full geo audit', 'all geo checks', 'complete geo report' → check_type=full (runs ALL: dns+ping+http+ssl+traceroute — slowest, only use when explicitly requested). "
+               "NEVER default to check_type=full for a simple speed or reachability question — use http or ping. "
+               "NOTE: this tool tests REACHABILITY and SPEED from regions only. "
+               "For SSL certificate quality/grade → use ssl_check. For HTTP security headers grade → use http_check. For DNS record values → use dns_lookup.")
 async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
     """Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD)."""
     base = WEB_TOOLS_URL

@@ -115,6 +115,7 @@ class UpdateProfileParams(BaseModel):
 
 @chat.function("update_check_profile", action_type="write", event="profile.updated",
                effects=["update:check_profile"],
+               id_projection="profile_id",
                data_model=CheckProfileEntity,
                description="Rename a check profile or replace its check type list. Use list_check_profiles first to get the profile_id.")
 async def fn_update_check_profile(ctx, params: UpdateProfileParams) -> ActionResult:
@@ -156,6 +157,7 @@ class DeleteProfileParams(BaseModel):
 
 @chat.function("delete_check_profile", action_type="destructive", event="profile.deleted",
                effects=["delete:check_profile"],
+               id_projection="profile_id",
                data_model=WtOpResult,
                description="Permanently delete a check profile and all monitors that use it. Cannot be undone.")
 async def fn_delete_check_profile(ctx, params: DeleteProfileParams) -> ActionResult:

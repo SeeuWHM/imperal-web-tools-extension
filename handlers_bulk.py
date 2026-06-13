@@ -8,7 +8,7 @@ import asyncio
 import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
@@ -21,15 +21,15 @@ from schemas_sdl_builders import ScanOpResult, build_scan_op
 class ScanToolParams(BaseModel):
     domains:     list[str] = Field(default_factory=list, description="Domains or IPs to scan (max 10)")
     # Defaults match _DOMAIN_TOGGLES visual defaults — SDK may omit unchanged form values
-    ssl:         bool = Field(default=True)
-    http:        bool = Field(default=True)
-    email:       bool = Field(default=True)
-    blacklist:   bool = Field(default=True)
-    geo:         bool = Field(default=False)
-    whois:       bool = Field(default=False)
-    ports:       bool = Field(default=False)
-    smtp:        bool = Field(default=False)
-    propagation: bool = Field(default=False)
+    ssl:         bool = Field(default=True,  description="SSL certificate grade A-F and expiry days")
+    http:        bool = Field(default=True,  description="HTTP security headers grade A+ to F")
+    email:       bool = Field(default=True,  description="Email authentication: SPF, DMARC, DKIM grade")
+    blacklist:   bool = Field(default=True,  description="Spam blacklist: 30 DNSBL lists verdict")
+    geo:         bool = Field(default=False, description="Geo reachability from EU/US/SG/MD regions (slowest)")
+    whois:       bool = Field(default=False, description="WHOIS ownership: registrar, creation/expiry dates")
+    ports:       bool = Field(default=False, description="TCP port scan: web/mail/database presets")
+    smtp:        bool = Field(default=False, description="SMTP server connectivity and STARTTLS support")
+    propagation: bool = Field(default=False, description="DNS propagation consistency across global resolvers")
 
 
 @chat.function("run_scan_tool", action_type="write", event="scan.tool",
@@ -91,13 +91,20 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
 # ─── IP Scan Tool (left panel — IP-specific checks) ──────────────────────── #
 
 class IpScanParams(BaseModel):
-    domains:   list[str] = Field(default_factory=list, description="IP addresses to scan (max 5)")
+    ips:       list[str] = Field(default_factory=list, description="IP addresses to scan (max 5)")
     # Defaults match _IP_TOGGLES visual defaults — SDK may omit unchanged form values
-    ip_lookup: bool = Field(default=True)
-    blacklist: bool = Field(default=True)
-    reverse:   bool = Field(default=True)
-    ports:     bool = Field(default=False)
-    geo_ping:  bool = Field(default=True)
+    ip_lookup: bool = Field(default=True,  description="Geolocation: city, country, ASN for each IP")
+    blacklist: bool = Field(default=True,  description="Spam blacklist: 30 DNSBL verdict for each IP")
+    reverse:   bool = Field(default=True,  description="Reverse DNS (PTR record) for each IP")
+    ports:     bool = Field(default=False, description="TCP port scan: web/mail/database presets")
+    geo_ping:  bool = Field(default=True,  description="Ping latency from EU/US/SG/MD for each IP")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_domains_alias(cls, v):
+        if isinstance(v, dict) and not v.get("ips") and v.get("domains"):
+            v = {**v, "ips": v["domains"]}
+        return v
 
 
 def _ip_status(check: str, data: dict) -> str:
@@ -123,7 +130,7 @@ def _ip_status(check: str, data: dict) -> str:
                description="Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD. Use for IP-specific investigations.")
 async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
     """Bulk IP scan (max 5) — geolocation + ASN, 29 DNSBL blacklist, reverse DNS (PTR), open ports, ping from EU/US/SG/MD."""
-    ips = list(dict.fromkeys(ip.strip() for ip in (params.domains or []) if ip.strip()))[:5]
+    ips = list(dict.fromkeys(ip.strip() for ip in (params.ips or []) if ip.strip()))[:5]
     if not ips:
         return ActionResult.error("Enter at least one IP address.", retryable=False)
 

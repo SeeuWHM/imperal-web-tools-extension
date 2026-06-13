@@ -89,6 +89,7 @@ class UpdateGroupParams(BaseModel):
 
 @chat.function("update_domain_group", action_type="write", event="group.updated",
                effects=["update:domain_group"],
+               id_projection="group_id",
                data_model=DomainGroupEntity,
                description=f"Add, remove or replace domains in an existing group, or rename it (max {MAX_DOMAINS} domains). Use list_domain_groups first to get the group_id.")
 async def fn_update_domain_group(ctx, params: UpdateGroupParams) -> ActionResult:
@@ -150,6 +151,7 @@ class DeleteGroupParams(BaseModel):
 
 @chat.function("delete_domain_group", action_type="destructive", event="group.deleted",
                effects=["delete:domain_group"],
+               id_projection="group_id",
                data_model=WtOpResult,
                description="Permanently delete a domain group and cascade-delete all monitors that use it. Cannot be undone — confirm group_id with list_domain_groups first.")
 async def fn_delete_domain_group(ctx, params: DeleteGroupParams) -> ActionResult:

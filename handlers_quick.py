@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
 from imperal_sdk.chat import TaskCancelled
-from handlers_scan import _run_domain_checks
+from handlers_scan import _run_domain_checks, _check_status
 from schemas_sdl_builders import (
     ScanOpResult, PanelDataResult,
     build_scan_op, build_panel_data,
@@ -72,8 +72,11 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         result_data = {"domain": d, "preset": "full", "results": results,
                        "result": None, "created_at": now}
         summary = f"Full audit for {d} — 5 checks completed"
-        issues = sum(1 for r in results.values()
-                     if isinstance(r, dict) and r.get("error")) if results else 0
+        issues = sum(
+            1 for name, r in results.items()
+            if isinstance(r, dict) and not r.get("error")
+            and _check_status(name, r) in ("warning", "critical")
+        ) if results else 0
         sdl_data = build_scan_op(d, "full", 1, issues, list(results.keys()), results=results)
     else:
         _single: dict[str, str] = {
