@@ -198,7 +198,7 @@ class GeoCheckParams(BaseModel):
                "→ 'dns from different countries', 'dns propagation per region', 'different DNS results per location' → check_type=dns. "
                "→ 'ssl from different regions', 'ssl reachable from US' → check_type=ssl. "
                "→ 'traceroute', 'network path', 'routing path from region' → check_type=traceroute. "
-               "→ 'full geo audit', 'all geo checks', 'complete geo report' → check_type=full (runs ALL: dns+ping+http+ssl+traceroute — slowest, only use when explicitly requested). "
+               "→ 'full geo audit', 'all geo checks', 'complete geo report' → check_type=full (runs dns+http+ssl from all 4 regions simultaneously — slowest, only use when explicitly requested). "
                "NEVER default to check_type=full for a simple speed or reachability question — use http or ping. "
                "NOTE: this tool tests REACHABILITY and SPEED from regions only. "
                "For SSL certificate quality/grade → use ssl_check. For HTTP security headers grade → use http_check. For DNS record values → use dns_lookup.")

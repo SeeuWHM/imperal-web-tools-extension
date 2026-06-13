@@ -15,7 +15,7 @@ from schemas_sdl_builders import (
 
 MAX_PROFILES = 5
 MAX_CHECKS   = 5
-_VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo"}
+_VALID_CHECKS = {"dns", "ssl", "whois", "http", "email", "blacklist", "geo", "seo", "ports", "smtp"}
 
 
 # ─── Create ───────────────────────────────────────────────────────────────── #
