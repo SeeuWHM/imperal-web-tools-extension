@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.6.0] — 2026-06-09 + post-release fixes 2026-06-14
+
+### Bugfixes (2026-06-14, commits `69b402b`→`c365092`)
+
+- **`handlers_bulk.py`** — `run_scan_tool` and `run_ip_scan` were collecting full per-target results but **not passing them to `build_scan_op`** (`results=` keyword missing). LLM received only aggregate counters (`scanned=N, issues=0`) with no per-IP / per-domain breakdown. Fixed: `results=results` added to both `build_scan_op` calls.
+- **`handlers_diag.py`** — `geo_check` description claimed `check_type=full` runs "dns+ping+http+ssl+traceroute". The backend `geo/full` endpoint only runs dns+http+ssl (no ping, no traceroute). Description corrected to "dns+http+ssl from all 4 regions simultaneously".
+- **`handlers_profiles.py`** — `_VALID_CHECKS` only included `{"dns","ssl","whois","http","email","blacklist","geo"}`. Backend supports 10 checks; `seo`, `ports`, `smtp` were silently rejected when creating or updating a profile. Fixed: all 10 check types now accepted.
+- **`handlers_diag.py`** — `geo_check` LLM routing bug: "loading speed from region X" triggered `check_type=full` (slowest — dns+http+ssl) instead of `check_type=http`. Explicit routing rules added to description with natural-language triggers per check_type.
+- **`handlers_bulk.py`** — `IpScanParams.domains` renamed to `ips` (semantic mismatch: field name implied domains, not IPs). Backward-compat `model_validator` keeps old `domains` key working.
+- **`handlers_monitors.py`, `handlers_groups.py`, `handlers_profiles.py`** — `id_projection` missing on 6 update/delete handlers (`update_monitor`, `delete_monitor`, `update_domain_group`, `delete_domain_group`, `update_check_profile`, `delete_check_profile`). Added `id_projection="<id_field>"` on all 6.
+- **`handlers_audit.py`** — `audit_domains` only checked `outcome.get("ok")`. Backend `audit_service.py` confirms `ok` is the correct field, but added resilient fallback: also accepts `outcome.get("success")` and data presence.
+- **`handlers_quick.py`** — `quick_check` full preset issues count used a plain `not r.get("error")` check instead of `_check_status()`, underreporting real issues. Fixed to use `_check_status(name, r) in ("warning","critical")`.
+- **Version sync** — `main.py` docstring and `imperal.json` showed `1.5.0` while `app.py` had `1.6.0`. All three synced to `1.6.0`.
+
 ## [1.6.0] — 2026-06-09
 
 ### Feature — bulk multi-domain audit `audit_domains` (plan P2)
