@@ -82,6 +82,7 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
         data=build_scan_op(
             target=",".join(domains[:3]) + ("…" if len(domains) > 3 else ""),
             preset="bulk", scanned=len(domains), issues=issues, checks=checks,
+            results=results,
         ),
         summary=f"Scanned {len(domains)} domain(s) — {issues} issue(s)",
         refresh_panels=["sidebar"],
@@ -193,6 +194,7 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
         data=build_scan_op(
             target=",".join(ips[:3]) + ("…" if len(ips) > 3 else ""),
             preset="ip_bulk", scanned=len(ips), issues=issues, checks=list(checks),
+            results=results,
         ),
         summary=f"Scanned {len(ips)} IP(s) — {issues} issue(s)",
         refresh_panels=["sidebar"],
