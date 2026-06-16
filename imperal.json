@@ -3089,6 +3089,278 @@
       "owner_chat_tool": "tool_web_tools_chat"
     },
     {
+      "name": "audit_domains",
+      "description": "INSTANT bulk audit of MULTIPLE domains (up to 25) in ONE call — no monitors or setup required. Use when the user gives a LIST of domains to check/compare at once ('check these domains', 'audit all of these', 'compare these sites'). Runs the selected checks on every domain in parallel server-side and returns one result per domain. Default checks: dns + ssl + http + email + blacklist; add 'geo'/'whois'/'seo'/'ports'/'smtp'. For a SINGLE domain use domain_full_check instead. Do NOT use run_scan/list_monitors/get_scan_results — those are recurring-monitor tools.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Bulk multi-domain audit parameters.",
+        "properties": {
+          "domains": {
+            "description": "Domains to audit in one call (1..25). Duplicates are removed.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "checks": {
+            "default": [
+              "dns",
+              "ssl",
+              "http",
+              "email",
+              "blacklist"
+            ],
+            "description": "Checks to run per domain. Defaults to dns+ssl+http+email+blacklist. Add 'geo' for multi-region reachability (slowest), 'whois'/'seo'/'ports'/'smtp' as needed.",
+            "items": {
+              "enum": [
+                "dns",
+                "ssl",
+                "whois",
+                "http",
+                "email",
+                "blacklist",
+                "geo",
+                "seo",
+                "ports",
+                "smtp"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "include_raw": {
+            "default": false,
+            "description": "When false (default) each domain carries a compact per-check status + one-line summary. Set true to also include full raw check data (large).",
+            "title": "Include Raw",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domains"
+        ],
+        "title": "AuditDomainsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "DomainAuditResult": {
+            "description": "Full parallel domain audit — all check results combined.",
+            "properties": {
+              "domain": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Domain",
+                "x-sdl-role": "net.domain"
+              },
+              "ip": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Ip",
+                "x-sdl-role": "net.ip"
+              },
+              "port": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Port",
+                "x-sdl-role": "net.port"
+              },
+              "protocol": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Protocol",
+                "x-sdl-role": "net.protocol"
+              },
+              "record_type": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Record Type",
+                "x-sdl-role": "net.record_type"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "domain_audit",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "check_results": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Check Results",
+                "x-sdl-role": "wt.check_results"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "DomainAuditResult",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "Bulk multi-domain audit — one DomainAuditResult per domain.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/DomainAuditResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DomainAuditPage",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
       "name": "create_domain_group",
       "description": "Create a named group of domains for monitoring (max 5 groups, max 20 domains each). Required before creating a monitor with create_monitor.",
       "action_type": "write",
