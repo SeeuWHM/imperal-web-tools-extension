@@ -1,4 +1,4 @@
-"""web-tools v1.6.0 · Web Diagnostics Extension — entry point (SDK 5.2.0 / SDL)."""
+"""web-tools v1.7.0 · Web Diagnostics Extension — entry point (SDK 5.3.0 / SDL)."""
 from __future__ import annotations
 
 import sys

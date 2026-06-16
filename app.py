@@ -1,4 +1,4 @@
-"""web-tools · Web Diagnostics Extension (SDK v5.2.0 / SDL)."""
+"""web-tools · Web Diagnostics Extension (SDK v5.3.0 / SDL)."""
 from __future__ import annotations
 
 import os
@@ -10,7 +10,7 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.6.0",
+    version="1.7.0",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
