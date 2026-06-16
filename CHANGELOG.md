@@ -1,14 +1,11 @@
 # Changelog
 
-## [1.7.0] — 2026-06-16 — metered billing (SDK 5.3.0)
+## [1.7.0] — 2026-06-16 — SDK 5.3.0, Per Action pricing
 
-### Added
-- **`ctx.billing.track_usage`** — three bulk operations now report per-unit consumption
-  to the platform billing engine (`SDK 5.3.0`):
-  - `audit_domains` — meter `domain_audited` (2 tokens/domain) called after each successful batch audit
-  - `run_scan_tool` — meter `domain_scanned` (2 tokens/domain) called after each bulk scan
-  - `run_ip_scan` — meter `ip_scanned` (3 tokens/IP) called after each IP batch scan
+### Changed
 - SDK pin bumped: `5.2.1` → `5.3.0`
+- Pricing model: Per Action via Developer Portal
+  — `run_scan_tool` 8 tokens, `run_ip_scan` 6 tokens, `audit_domains` 15 tokens
 
 ## [1.6.0] — 2026-06-09 + post-release fixes 2026-06-14
 

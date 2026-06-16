@@ -78,7 +78,6 @@ async def fn_run_scan_tool(ctx, params: ScanToolParams) -> ActionResult:
 
     issues = sum(1 for dr in results.values()
                  for r in dr.values() if r.get("status") in ("warning", "critical"))
-    await ctx.billing.track_usage("domain_scanned", quantity=len(domains))
     return ActionResult.success(
         data=build_scan_op(
             target=",".join(domains[:3]) + ("…" if len(domains) > 3 else ""),
@@ -191,7 +190,6 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
 
     issues = sum(1 for ir in results.values()
                  for r in ir.values() if r.get("status") in ("warning", "critical"))
-    await ctx.billing.track_usage("ip_scanned", quantity=len(ips))
     return ActionResult.success(
         data=build_scan_op(
             target=",".join(ips[:3]) + ("…" if len(ips) > 3 else ""),

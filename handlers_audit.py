@@ -96,7 +96,6 @@ async def fn_audit_domains(ctx, params: AuditDomainsParams) -> ActionResult:
                 norm[check] = {"status": status, "summary": _check_detail(check, wrapped)}
         per_domain.append((domain, norm))
 
-    await ctx.billing.track_usage("domain_audited", quantity=len(per_domain))
     return ActionResult.success(
         data=build_domain_audit_page(per_domain),
         summary=f"Audited {len(per_domain)} domain(s) × {len(checks)} check(s) — {issues} issue(s) found",
