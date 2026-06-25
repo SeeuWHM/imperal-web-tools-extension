@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from backend import unwrap
 from handlers_ui import ssl_ui, dns_ui, http_ui
 from schemas_sdl_builders import (
     DomainCheckResult, SslResult,
@@ -38,14 +39,13 @@ async def fn_dns_lookup(ctx, params: DnsLookupParams) -> ActionResult:
         resp = await ctx.http.get(f"{base}/v1/dns/authoritative/{params.record_type.lower()}/{params.domain}")
     else:
         resp = await ctx.http.get(f"{base}/v1/dns/{params.record_type.lower()}/{params.domain}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "DNS lookup failed", retryable=False)
+    data, err = unwrap(resp, "DNS lookup failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_domain_check(params.domain, params.record_type, body["data"]),
+        data=build_domain_check(params.domain, params.record_type, data),
         summary=f"DNS {params.record_type} for {params.domain}",
-        ui=dns_ui(params.domain, params.record_type, body["data"]),
+        ui=dns_ui(params.domain, params.record_type, data),
     )
 
 
@@ -66,14 +66,13 @@ async def fn_ssl_check(ctx, params: SslCheckParams) -> ActionResult:
     suffix = "/full" if params.full else ""
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/ssl/{params.domain}{suffix}",
                               params={"port": params.port})
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "SSL check failed", retryable=False)
+    data, err = unwrap(resp, "SSL check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_ssl(params.domain, params.port, body["data"]),
+        data=build_ssl(params.domain, params.port, data),
         summary=f"SSL {'full ' if params.full else ''}check for {params.domain}",
-        ui=ssl_ui(params.domain, body["data"]),
+        ui=ssl_ui(params.domain, data),
     )
 
 
@@ -103,12 +102,11 @@ async def fn_whois_lookup(ctx, params: WhoisParams) -> ActionResult:
         resp = await ctx.http.get(f"{base}/v1/whois/{params.target}/quick")
     else:
         resp = await ctx.http.get(f"{base}/v1/whois/{params.target}/{params.detail}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "WHOIS lookup failed", retryable=False)
+    data, err = unwrap(resp, "WHOIS lookup failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_domain_check(params.target, f"whois_{params.detail}", body.get("data")),
+        data=build_domain_check(params.target, f"whois_{params.detail}", data),
         summary=f"WHOIS {params.detail} for {params.target}",
     )
 
@@ -141,14 +139,13 @@ async def fn_http_check(ctx, params: HttpCheckParams) -> ActionResult:
         resp = await ctx.http.get(f"{base}/v1/http/status/quick", params={"url": params.domain})
     else:
         resp = await ctx.http.get(f"{base}/v1/http/redirects", params={"url": params.domain})
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "HTTP check failed", retryable=False)
+    data, err = unwrap(resp, "HTTP check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_domain_check(params.domain, params.check_type, body["data"]),
+        data=build_domain_check(params.domain, params.check_type, data),
         summary=f"HTTP {params.check_type} for {params.domain}",
-        ui=http_ui(params.domain, body["data"]) if params.check_type in ("grade","quick","headers","missing") else None,
+        ui=http_ui(params.domain, data) if params.check_type in ("grade","quick","headers","missing") else None,
     )
 
 
@@ -188,12 +185,11 @@ async def fn_network_check(ctx, params: NetworkCheckParams) -> ActionResult:
         "asn":             f"/v1/network/asn/{params.target}",
     }
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}{paths[params.check_type]}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "Network check failed", retryable=False)
+    data, err = unwrap(resp, "Network check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_domain_check(params.target, params.check_type, body["data"]),
+        data=build_domain_check(params.target, params.check_type, data),
         summary=f"Network {params.check_type} for {params.target}",
     )
 
@@ -224,11 +220,10 @@ async def fn_seo_check(ctx, params: SeoCheckParams) -> ActionResult:
         "indexing": f"{base}/v1/seo/indexing-status",
     }
     resp = await ctx.http.get(endpoints[params.check_type], params={param_key: params.target})
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "SEO check failed", retryable=False)
+    data, err = unwrap(resp, "SEO check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_domain_check(params.target, params.check_type, body["data"]),
+        data=build_domain_check(params.target, params.check_type, data),
         summary=f"SEO {params.check_type} for {params.target}",
     )

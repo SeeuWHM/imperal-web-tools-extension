@@ -1,8 +1,8 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.3.0",
+  "sdk_version": "5.7.3",
   "app_id": "web-tools",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "name": "Web Tools",
   "description": "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
   "icon": "icon.svg",
@@ -1694,6 +1694,472 @@
       "owner_chat_tool": "tool_web_tools_chat"
     },
     {
+      "name": "run_scan",
+      "description": "Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors). Scans ALL domains in that monitor's group. Use ONLY when user explicitly mentions a monitor by name or asks to 'run monitor', 'rescan monitor', 'refresh monitor now'. Do NOT use this for ad-hoc domain checks — for that use domain_full_check instead.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "create:scan_result"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "monitor_id": {
+            "description": "Monitor ID to run scan for now",
+            "title": "Monitor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "RunScanParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "Domain monitor scan snapshot result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor_scan",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Checked",
+            "x-sdl-role": "wt.domains_checked"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary",
+            "x-sdl-role": "wt.summary"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "checks_run": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks Run",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorScanResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "scan.completed",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "get_scan_results",
+      "description": "Get last snapshot results for an EXISTING MONITOR (requires monitor_id). Shows per-domain/per-check status from the most recent scheduled scan. Use ONLY when user asks about a specific monitor's results or history. Do NOT use for ad-hoc domain checks — for that use domain_full_check.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "monitor_id": {
+            "description": "Monitor ID to retrieve last scan results for",
+            "title": "Monitor Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monitor_id"
+        ],
+        "title": "GetScanResultsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "Domain monitor scan snapshot result.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At",
+            "x-sdl-role": "time.created_at"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Updated At",
+            "x-sdl-role": "time.updated_at"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deleted At",
+            "x-sdl-role": "time.deleted_at"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "monitor_scan",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitor Id",
+            "x-sdl-role": "wt.monitor_id"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Snapshot Id",
+            "x-sdl-role": "wt.snapshot_id"
+          },
+          "domains_checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains Checked",
+            "x-sdl-role": "wt.domains_checked"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary",
+            "x-sdl-role": "wt.summary"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domains",
+            "x-sdl-role": "wt.domains"
+          },
+          "checks_run": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checks Run",
+            "x-sdl-role": "wt.checks"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "MonitorScanResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
       "name": "email_check",
       "description": "Email authentication — SPF/DMARC/DKIM/BIMI checks or combined A-F grade, trace raw email headers to find originating IP, generate SPF or DMARC records.",
       "action_type": "read",
@@ -2654,7 +3120,7 @@
     },
     {
       "name": "geo_check",
-      "description": "Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). Use when user asks: 'loading speed from America/Asia/Europe', 'is site accessible from US', 'latency from Singapore', 'down for users in another country', 'скорость загрузки с Америки/Азии'. check_type=ping = latency from each region (ms). check_type=http = HTTP response time and status from each region (use for 'loading speed'). check_type=dns = DNS resolution consistency per region (finds anycast/Cloudflare issues). check_type=ssl = SSL reachability per region. check_type=traceroute = network path per region. check_type=full = ALL probes from all 4 regions in one call. NOTE: tests REACHABILITY and SPEED, not quality — for certificate grade use ssl_check, for header quality use http_check.",
+      "description": "Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). ROUTING RULES — pick check_type based on what the user is asking: → 'loading speed', 'response time', 'скорость загрузки', 'how fast from X country' → check_type=http (HTTP response time + status per region). → 'latency', 'ping', 'ms from region', 'reachable from X' → check_type=ping (RTT ms + packet loss per region). → 'dns from different countries', 'dns propagation per region', 'different DNS results per location' → check_type=dns. → 'ssl from different regions', 'ssl reachable from US' → check_type=ssl. → 'traceroute', 'network path', 'routing path from region' → check_type=traceroute. → 'full geo audit', 'all geo checks', 'complete geo report' → check_type=full (runs dns+http+ssl from all 4 regions simultaneously — slowest, only use when explicitly requested). NEVER default to check_type=full for a simple speed or reachability question — use http or ping. NOTE: this tool tests REACHABILITY and SPEED from regions only. For SSL certificate quality/grade → use ssl_check. For HTTP security headers grade → use http_check. For DNS record values → use dns_lookup.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2880,7 +3346,7 @@
     },
     {
       "name": "domain_full_check",
-      "description": "INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Add 'geo' for geographic reachability from EU/US/SG/MD. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.",
+      "description": "INSTANT one-shot domain audit — no monitors or setup required, works on ANY domain. Runs selected checks in parallel and shows a summary table. Use this when: user mentions a domain and asks for 'full check', 'analysis', 'audit', 'show everything', 'what can you do on this domain', 'check this site'. Default checks: dns + ssl (certificate grade) + http (security headers grade) + email (SPF/DMARC/DKIM) + blacklist (spam lists). Optional extra checks: 'geo' (reachability from EU/US/SG/MD), 'whois' (ownership), 'seo' (meta/title issues), 'ports' (open ports), 'smtp' (mail-server connectivity). Returns a compact per-check status summary by default; set include_raw=true only when the user explicitly wants the full raw data. Do NOT use run_scan, list_monitors or get_scan_results for ad-hoc domain checks — those are for recurring monitor automation only.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -2900,7 +3366,7 @@
               "email",
               "blacklist"
             ],
-            "description": "Checks to run in parallel. Add 'geo' for multi-region probe (slowest). Add 'whois' for ownership data.",
+            "description": "Checks to run in parallel. Defaults to dns+ssl+http+email+blacklist. Add 'geo' for multi-region reachability (slowest), 'whois' for ownership, 'seo' for meta/title issues, 'ports' for open-port scan, 'smtp' for mail-server connectivity.",
             "items": {
               "enum": [
                 "dns",
@@ -2909,12 +3375,21 @@
                 "http",
                 "email",
                 "blacklist",
-                "geo"
+                "geo",
+                "seo",
+                "ports",
+                "smtp"
               ],
               "type": "string"
             },
             "title": "Checks",
             "type": "array"
+          },
+          "include_raw": {
+            "default": false,
+            "description": "When false (default) the data payload carries only per-check status + a one-line summary (compact). Set true to also return the full raw check results (large — only when explicitly asked for raw data).",
+            "title": "Include Raw",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3081,278 +3556,6 @@
         "title": "DomainAuditResult",
         "type": "object",
         "x-sdl": "entity"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_web_tools_chat"
-    },
-    {
-      "name": "audit_domains",
-      "description": "INSTANT bulk audit of MULTIPLE domains (up to 25) in ONE call — no monitors or setup required. Use when the user gives a LIST of domains to check/compare at once ('check these domains', 'audit all of these', 'compare these sites'). Runs the selected checks on every domain in parallel server-side and returns one result per domain. Default checks: dns + ssl + http + email + blacklist; add 'geo'/'whois'/'seo'/'ports'/'smtp'. For a SINGLE domain use domain_full_check instead. Do NOT use run_scan/list_monitors/get_scan_results — those are recurring-monitor tools.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "description": "Bulk multi-domain audit parameters.",
-        "properties": {
-          "domains": {
-            "description": "Domains to audit in one call (1..25). Duplicates are removed.",
-            "items": {
-              "type": "string"
-            },
-            "title": "Domains",
-            "type": "array"
-          },
-          "checks": {
-            "default": [
-              "dns",
-              "ssl",
-              "http",
-              "email",
-              "blacklist"
-            ],
-            "description": "Checks to run per domain. Defaults to dns+ssl+http+email+blacklist. Add 'geo' for multi-region reachability (slowest), 'whois'/'seo'/'ports'/'smtp' as needed.",
-            "items": {
-              "enum": [
-                "dns",
-                "ssl",
-                "whois",
-                "http",
-                "email",
-                "blacklist",
-                "geo",
-                "seo",
-                "ports",
-                "smtp"
-              ],
-              "type": "string"
-            },
-            "title": "Checks",
-            "type": "array"
-          },
-          "include_raw": {
-            "default": false,
-            "description": "When false (default) each domain carries a compact per-check status + one-line summary. Set true to also include full raw check data (large).",
-            "title": "Include Raw",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "domains"
-        ],
-        "title": "AuditDomainsParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "$defs": {
-          "DomainAuditResult": {
-            "description": "Full parallel domain audit — all check results combined.",
-            "properties": {
-              "domain": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Domain",
-                "x-sdl-role": "net.domain"
-              },
-              "ip": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Ip",
-                "x-sdl-role": "net.ip"
-              },
-              "port": {
-                "anyOf": [
-                  {
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Port",
-                "x-sdl-role": "net.port"
-              },
-              "protocol": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Protocol",
-                "x-sdl-role": "net.protocol"
-              },
-              "record_type": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Record Type",
-                "x-sdl-role": "net.record_type"
-              },
-              "id": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "integer"
-                  }
-                ],
-                "title": "Id"
-              },
-              "title": {
-                "title": "Title",
-                "type": "string"
-              },
-              "kind": {
-                "default": "domain_audit",
-                "title": "Kind",
-                "type": "string"
-              },
-              "subtitle": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Subtitle"
-              },
-              "description": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Description"
-              },
-              "status": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Status"
-              },
-              "url": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Url"
-              },
-              "check_results": {
-                "anyOf": [
-                  {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "default": null,
-                "title": "Check Results",
-                "x-sdl-role": "wt.check_results"
-              }
-            },
-            "required": [
-              "id",
-              "title"
-            ],
-            "title": "DomainAuditResult",
-            "type": "object",
-            "x-sdl": "entity"
-          }
-        },
-        "description": "Bulk multi-domain audit — one DomainAuditResult per domain.",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/$defs/DomainAuditResult"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "total": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Total"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Page"
-          },
-          "has_more": {
-            "default": false,
-            "title": "Has More",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "DomainAuditPage",
-        "type": "object",
-        "x-sdl": "entity-list"
       },
       "event": "",
       "background": false,
@@ -3539,7 +3742,7 @@
       "effects": [
         "update:domain_group"
       ],
-      "id_projection": "",
+      "id_projection": "group_id",
       "params_schema": {
         "description": "Update domain group parameters.",
         "properties": {
@@ -3910,7 +4113,7 @@
       "effects": [
         "delete:domain_group"
       ],
-      "id_projection": "",
+      "id_projection": "group_id",
       "params_schema": {
         "description": "Delete domain group parameters.",
         "properties": {
@@ -4403,7 +4606,7 @@
       "effects": [
         "update:check_profile"
       ],
-      "id_projection": "",
+      "id_projection": "profile_id",
       "params_schema": {
         "description": "Update check profile — rename or change check types.",
         "properties": {
@@ -4595,7 +4798,7 @@
       "effects": [
         "delete:check_profile"
       ],
-      "id_projection": "",
+      "id_projection": "profile_id",
       "params_schema": {
         "description": "Delete check profile parameters.",
         "properties": {
@@ -5459,7 +5662,7 @@
       "effects": [
         "update:monitor"
       ],
-      "id_projection": "",
+      "id_projection": "monitor_id",
       "params_schema": {
         "description": "Update monitor — rename or change interval.",
         "properties": {
@@ -5813,7 +6016,7 @@
       "effects": [
         "delete:monitor"
       ],
-      "id_projection": "",
+      "id_projection": "monitor_id",
       "params_schema": {
         "description": "Delete domain health monitor parameters.",
         "properties": {
@@ -6324,472 +6527,6 @@
       "owner_chat_tool": "tool_web_tools_chat"
     },
     {
-      "name": "run_scan",
-      "description": "Trigger an immediate scan for an EXISTING MONITOR (requires monitor_id from list_monitors). Scans ALL domains in that monitor's group. Use ONLY when user explicitly mentions a monitor by name or asks to 'run monitor', 'rescan monitor', 'refresh monitor now'. Do NOT use this for ad-hoc domain checks — for that use domain_full_check instead.",
-      "action_type": "write",
-      "chain_callable": true,
-      "effects": [
-        "create:scan_result"
-      ],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "monitor_id": {
-            "description": "Monitor ID to run scan for now",
-            "title": "Monitor Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "monitor_id"
-        ],
-        "title": "RunScanParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "description": "Domain monitor scan snapshot result.",
-        "properties": {
-          "created_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Created At",
-            "x-sdl-role": "time.created_at"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Updated At",
-            "x-sdl-role": "time.updated_at"
-          },
-          "deleted_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Deleted At",
-            "x-sdl-role": "time.deleted_at"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ],
-            "title": "Id"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "kind": {
-            "default": "monitor_scan",
-            "title": "Kind",
-            "type": "string"
-          },
-          "subtitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Subtitle"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Description"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Status"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Url"
-          },
-          "monitor_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Monitor Id",
-            "x-sdl-role": "wt.monitor_id"
-          },
-          "snapshot_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Snapshot Id",
-            "x-sdl-role": "wt.snapshot_id"
-          },
-          "domains_checked": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Domains Checked",
-            "x-sdl-role": "wt.domains_checked"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Summary",
-            "x-sdl-role": "wt.summary"
-          },
-          "domains": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Domains",
-            "x-sdl-role": "wt.domains"
-          },
-          "checks_run": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Checks Run",
-            "x-sdl-role": "wt.checks"
-          }
-        },
-        "required": [
-          "id",
-          "title"
-        ],
-        "title": "MonitorScanResult",
-        "type": "object",
-        "x-sdl": "entity"
-      },
-      "event": "scan.completed",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_web_tools_chat"
-    },
-    {
-      "name": "get_scan_results",
-      "description": "Get last snapshot results for an EXISTING MONITOR (requires monitor_id). Shows per-domain/per-check status from the most recent scheduled scan. Use ONLY when user asks about a specific monitor's results or history. Do NOT use for ad-hoc domain checks — for that use domain_full_check.",
-      "action_type": "read",
-      "chain_callable": true,
-      "effects": [],
-      "id_projection": "",
-      "params_schema": {
-        "properties": {
-          "monitor_id": {
-            "description": "Monitor ID to retrieve last scan results for",
-            "title": "Monitor Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "monitor_id"
-        ],
-        "title": "GetScanResultsParams",
-        "type": "object"
-      },
-      "return_schema": {
-        "description": "Domain monitor scan snapshot result.",
-        "properties": {
-          "created_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Created At",
-            "x-sdl-role": "time.created_at"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Updated At",
-            "x-sdl-role": "time.updated_at"
-          },
-          "deleted_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Deleted At",
-            "x-sdl-role": "time.deleted_at"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ],
-            "title": "Id"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "kind": {
-            "default": "monitor_scan",
-            "title": "Kind",
-            "type": "string"
-          },
-          "subtitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Subtitle"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Description"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Status"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Url"
-          },
-          "monitor_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Monitor Id",
-            "x-sdl-role": "wt.monitor_id"
-          },
-          "snapshot_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Snapshot Id",
-            "x-sdl-role": "wt.snapshot_id"
-          },
-          "domains_checked": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Domains Checked",
-            "x-sdl-role": "wt.domains_checked"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Summary",
-            "x-sdl-role": "wt.summary"
-          },
-          "domains": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Domains",
-            "x-sdl-role": "wt.domains"
-          },
-          "checks_run": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Checks Run",
-            "x-sdl-role": "wt.checks"
-          }
-        },
-        "required": [
-          "id",
-          "title"
-        ],
-        "title": "MonitorScanResult",
-        "type": "object",
-        "x-sdl": "entity"
-      },
-      "event": "",
-      "background": false,
-      "long_running": false,
-      "scopes": [],
-      "owner_chat_tool": "tool_web_tools_chat"
-    },
-    {
       "name": "quick_check",
       "description": "Single-domain ad-hoc check from the panel. Presets: full=5 checks (dns+ssl+http+email+blacklist) in parallel, dns=DNS records, ssl=certificate quality grade, http=security headers grade, email=SPF/DMARC/DKIM, blacklist=spam lists, geo=reachability from EU/US/SG/MD (slowest), ports=TCP port scan. Result replaces left panel display.",
       "action_type": "write",
@@ -7223,46 +6960,55 @@
           },
           "ssl": {
             "default": true,
+            "description": "SSL certificate grade A-F and expiry days",
             "title": "Ssl",
             "type": "boolean"
           },
           "http": {
             "default": true,
+            "description": "HTTP security headers grade A+ to F",
             "title": "Http",
             "type": "boolean"
           },
           "email": {
             "default": true,
+            "description": "Email authentication: SPF, DMARC, DKIM grade",
             "title": "Email",
             "type": "boolean"
           },
           "blacklist": {
             "default": true,
+            "description": "Spam blacklist: 30 DNSBL lists verdict",
             "title": "Blacklist",
             "type": "boolean"
           },
           "geo": {
             "default": false,
+            "description": "Geo reachability from EU/US/SG/MD regions (slowest)",
             "title": "Geo",
             "type": "boolean"
           },
           "whois": {
             "default": false,
+            "description": "WHOIS ownership: registrar, creation/expiry dates",
             "title": "Whois",
             "type": "boolean"
           },
           "ports": {
             "default": false,
+            "description": "TCP port scan: web/mail/database presets",
             "title": "Ports",
             "type": "boolean"
           },
           "smtp": {
             "default": false,
+            "description": "SMTP server connectivity and STARTTLS support",
             "title": "Smtp",
             "type": "boolean"
           },
           "propagation": {
             "default": false,
+            "description": "DNS propagation consistency across global resolvers",
             "title": "Propagation",
             "type": "boolean"
           }
@@ -7478,36 +7224,41 @@
       "id_projection": "",
       "params_schema": {
         "properties": {
-          "domains": {
+          "ips": {
             "description": "IP addresses to scan (max 5)",
             "items": {
               "type": "string"
             },
-            "title": "Domains",
+            "title": "Ips",
             "type": "array"
           },
           "ip_lookup": {
             "default": true,
+            "description": "Geolocation: city, country, ASN for each IP",
             "title": "Ip Lookup",
             "type": "boolean"
           },
           "blacklist": {
             "default": true,
+            "description": "Spam blacklist: 30 DNSBL verdict for each IP",
             "title": "Blacklist",
             "type": "boolean"
           },
           "reverse": {
             "default": true,
+            "description": "Reverse DNS (PTR record) for each IP",
             "title": "Reverse",
             "type": "boolean"
           },
           "ports": {
             "default": false,
+            "description": "TCP port scan: web/mail/database presets",
             "title": "Ports",
             "type": "boolean"
           },
           "geo_ping": {
             "default": true,
+            "description": "Ping latency from EU/US/SG/MD for each IP",
             "title": "Geo Ping",
             "type": "boolean"
           }
@@ -7711,6 +7462,749 @@
       "long_running": false,
       "scopes": [],
       "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "audit_domains",
+      "description": "INSTANT bulk audit of MULTIPLE domains (up to 25) in ONE call — no monitors or setup required. Use when the user gives a LIST of domains to check/compare at once ('check these domains', 'audit all of these', 'compare these sites'). Runs the selected checks on every domain in parallel server-side and returns one result per domain. Default checks: dns + ssl + http + email + blacklist; add 'geo'/'whois'/'seo'/'ports'/'smtp'. For a SINGLE domain use domain_full_check instead. Do NOT use run_scan/list_monitors/get_scan_results — those are recurring-monitor tools.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Bulk multi-domain audit parameters.",
+        "properties": {
+          "domains": {
+            "description": "Domains to audit in one call (1..25). Duplicates are removed.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "checks": {
+            "default": [
+              "dns",
+              "ssl",
+              "http",
+              "email",
+              "blacklist"
+            ],
+            "description": "Checks to run per domain. Defaults to dns+ssl+http+email+blacklist. Add 'geo' for multi-region reachability (slowest), 'whois'/'seo'/'ports'/'smtp' as needed.",
+            "items": {
+              "enum": [
+                "dns",
+                "ssl",
+                "whois",
+                "http",
+                "email",
+                "blacklist",
+                "geo",
+                "seo",
+                "ports",
+                "smtp"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "include_raw": {
+            "default": false,
+            "description": "When false (default) each domain carries a compact per-check status + one-line summary. Set true to also include full raw check data (large).",
+            "title": "Include Raw",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domains"
+        ],
+        "title": "AuditDomainsParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "DomainAuditResult": {
+            "description": "Full parallel domain audit — all check results combined.",
+            "properties": {
+              "domain": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Domain",
+                "x-sdl-role": "net.domain"
+              },
+              "ip": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Ip",
+                "x-sdl-role": "net.ip"
+              },
+              "port": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Port",
+                "x-sdl-role": "net.port"
+              },
+              "protocol": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Protocol",
+                "x-sdl-role": "net.protocol"
+              },
+              "record_type": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Record Type",
+                "x-sdl-role": "net.record_type"
+              },
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "domain_audit",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "check_results": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Check Results",
+                "x-sdl-role": "wt.check_results"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "DomainAuditResult",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "Bulk multi-domain audit — one DomainAuditResult per domain.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/DomainAuditResult"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DomainAuditPage",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "web_search",
+      "description": "WEB SEARCH — find pages for a query. FIRST step of any web research: returns candidate cards (url, title, snippet, score) but does NOT read page content. Inspect the cards, pick the relevant url(s), then call read_url on them. Run web_search again with a different phrasing if the first results are thin. Use include_domains to focus on a specific site. NOT for diagnosing a domain you own — that's domain_full_check / dns_lookup / etc.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Web search parameters.",
+        "properties": {
+          "query": {
+            "description": "Search query in natural language.",
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "num_results": {
+            "default": 10,
+            "description": "How many candidate results to return.",
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Num Results",
+            "type": "integer"
+          },
+          "include_domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Restrict results to these domains (e.g. ['docs.python.org']).",
+            "title": "Include Domains"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "WebSearchParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "SearchResultItem": {
+            "description": "One web-search candidate card (facts only — relevance is the LLM's job).",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "search_result",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Status"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url",
+                "x-sdl-role": "wt.url"
+              },
+              "snippet": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Snippet",
+                "x-sdl-role": "wt.snippet"
+              },
+              "published_date": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Published Date",
+                "x-sdl-role": "wt.published_date"
+              },
+              "author": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Author",
+                "x-sdl-role": "wt.author"
+              },
+              "score": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Score",
+                "x-sdl-role": "wt.score"
+              },
+              "engine": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Engine",
+                "x-sdl-role": "wt.engine"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "SearchResultItem",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "description": "web_search results — a real EntityList, never a dict wrapper.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/SearchResultItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SearchResultList",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "read_url",
+      "description": "READ ONE web page into clean Markdown — the second step of web research, after web_search. Returns extracted text + metadata (title, source, lang, token_count). CRITICAL: if this returns an error for a url, DO NOT abandon the research — call read_url again on the NEXT candidate from web_search. One dead or blocked page must never end the task. Read several pages when one source is not enough.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Read-one-page parameters.",
+        "properties": {
+          "url": {
+            "description": "URL to read (http/https).",
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "max_tokens": {
+            "default": 8000,
+            "description": "Token budget for the extracted content.",
+            "maximum": 32000,
+            "minimum": 200,
+            "title": "Max Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ReadUrlParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "A page read into clean Markdown + extraction metadata.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "page_content",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url",
+            "x-sdl-role": "wt.url"
+          },
+          "final_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Final Url",
+            "x-sdl-role": "wt.final_url"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content",
+            "x-sdl-role": "wt.content"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source",
+            "x-sdl-role": "wt.source"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Type",
+            "x-sdl-role": "wt.content_type"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lang",
+            "x-sdl-role": "wt.lang"
+          },
+          "token_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Count",
+            "x-sdl-role": "wt.token_count"
+          },
+          "truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Truncated",
+            "x-sdl-role": "wt.truncated"
+          },
+          "page_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page Metadata",
+            "x-sdl-role": "wt.page_metadata"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PageContent",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
     }
   ],
   "signals": [],
@@ -7732,5 +8226,37 @@
     "on_install": {
       "signature": "(ctx)"
     }
-  }
+  },
+  "panels": [
+    {
+      "panel_id": "secrets",
+      "slot": "overlay",
+      "title": "Secrets",
+      "tree": {}
+    },
+    {
+      "panel_id": "sidebar",
+      "slot": "left",
+      "title": "Web Tools",
+      "tree": {}
+    },
+    {
+      "panel_id": "overview",
+      "slot": "right",
+      "title": "Domain Health",
+      "tree": {}
+    },
+    {
+      "panel_id": "detail",
+      "slot": "right",
+      "title": "Monitor Detail",
+      "tree": {}
+    },
+    {
+      "panel_id": "setup",
+      "slot": "overlay",
+      "title": "Setup",
+      "tree": {}
+    }
+  ]
 }

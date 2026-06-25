@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
 from imperal_sdk.chat import TaskCancelled
+from backend import unwrap, error_message
 from handlers_scan import _run_domain_checks, _check_status
 from schemas_sdl_builders import (
     ScanOpResult, PanelDataResult,
@@ -64,7 +65,9 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
                 try:
                     r = await ctx.http.get(f"{base}{url}")
                     b = r.json()
-                    return name, b.get("data") if b.get("success") else {"error": b.get("error")}
+                    if b.get("success"):
+                        return name, b.get("data")
+                    return name, {"error": error_message(b, "check failed")}
                 except Exception as exc:
                     return name, {"error": str(exc)}
 
@@ -90,17 +93,16 @@ async def fn_quick_check(ctx, params: QuickCheckParams) -> ActionResult:
         }
         try:
             resp = await ctx.http.get(f"{base}{_single[params.preset]}")
-            resp.raise_for_status()
-            body = resp.json()
         except Exception as exc:
             return ActionResult.error(f"{params.preset.upper()} check failed: {exc}", retryable=True)
-        if not body.get("success"):
-            return ActionResult.error(body.get("error") or "Check failed", retryable=False)
+        data, err = unwrap(resp, f"{params.preset.upper()} check failed")
+        if err:
+            return ActionResult.error(err, retryable=False)
         result_data = {"domain": d, "preset": params.preset,
-                       "result": body["data"], "results": None, "created_at": now}
+                       "result": data, "results": None, "created_at": now}
         summary = f"{params.preset.upper()} check for {d} — done"
         sdl_data = build_scan_op(d, params.preset, 1, 0, [params.preset],
-                                 results={params.preset: body["data"]})
+                                 results={params.preset: data})
 
     qpage = await ctx.store.query("wt_quick_results",
                                   where={"owner_id": ctx.user.imperal_id}, limit=1)

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from backend import error_message
 from handlers_scan import _run_domain_checks
 from schemas_sdl_builders import ScanOpResult, build_scan_op
 
@@ -158,7 +159,7 @@ async def fn_run_ip_scan(ctx, params: IpScanParams) -> ActionResult:
             if body.get("success"):
                 d = body.get("data")
                 return chk, {"status": _ip_status(chk, d or {}), "data": d}
-            err = body.get("error") or body.get("message") or "Check failed"
+            err = error_message(body, body.get("message") or "Check failed")
             return chk, {"status": "unknown", "data": None, "error": err}
         except Exception as exc:
             return chk, {"status": "unknown", "data": None, "error": str(exc)}

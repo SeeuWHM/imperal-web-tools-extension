@@ -10,12 +10,13 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.7.0",
+    version="1.8.0",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
         "WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, "
-        "SMTP test, recurring automated monitors with alerts."
+        "SMTP test, recurring automated monitors with alerts. Plus web research — "
+        "search the web and read pages into clean Markdown."
     ),
     icon="icon.svg",
     actions_explicit=True,
@@ -50,7 +51,12 @@ chat = ChatExtension(
         "create_monitor_full=set up automated domain monitoring; "
         "list_monitors=show existing scheduled monitors; "
         "run_scan=trigger immediate scan on an existing monitor; "
-        "run_scan_tool=bulk scan up to 10 domains; run_ip_scan=bulk scan up to 5 IPs."
+        "run_scan_tool=bulk scan up to 10 domains; run_ip_scan=bulk scan up to 5 IPs. "
+        "3) WEB RESEARCH (read the live web, not domain diagnostics): "
+        "web_search=find pages for a query — returns candidate cards (url+title+snippet), does NOT read them; "
+        "read_url=read ONE page into clean Markdown. "
+        "Loop: web_search → pick relevant url(s) → read_url each; if read_url errors on a url, read the NEXT "
+        "candidate instead of stopping; run another web_search with new wording when results are thin."
     ),
 )
 

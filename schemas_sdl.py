@@ -174,3 +174,38 @@ class WtOpResult(sdl.Entity):
 
     kind: str = "wt_op"
     monitors_removed: int | None = sdl_field(role="wt.monitors_removed")
+
+
+# ── Web research (web_search + read_url) ───────────────────────────────────────
+
+class SearchResultItem(sdl.Entity):
+    """One web-search candidate card (facts only — relevance is the LLM's job)."""
+
+    kind: str = "search_result"
+    url: str | None = sdl_field(role="wt.url")
+    snippet: str | None = sdl_field(role="wt.snippet")
+    published_date: str | None = sdl_field(role="wt.published_date")
+    author: str | None = sdl_field(role="wt.author")
+    score: float | None = sdl_field(role="wt.score")
+    engine: str | None = sdl_field(role="wt.engine")
+
+
+class SearchResultList(sdl.EntityList[SearchResultItem]):
+    """web_search results — a real EntityList, never a dict wrapper."""
+
+    pass
+
+
+class PageContent(sdl.Entity):
+    """A page read into clean Markdown + extraction metadata."""
+
+    kind: str = "page_content"
+    url: str | None = sdl_field(role="wt.url")
+    final_url: str | None = sdl_field(role="wt.final_url")
+    content: str | None = sdl_field(role="wt.content")
+    source: str | None = sdl_field(role="wt.source")            # llms.txt|readable|pdf|jsonld
+    content_type: str | None = sdl_field(role="wt.content_type")
+    lang: str | None = sdl_field(role="wt.lang")
+    token_count: int | None = sdl_field(role="wt.token_count")
+    truncated: bool | None = sdl_field(role="wt.truncated")
+    page_metadata: dict | None = sdl_field(role="wt.page_metadata")

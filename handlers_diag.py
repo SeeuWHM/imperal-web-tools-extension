@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from backend import unwrap
 from handlers_ui import blacklist_ui, full_audit_ui, _check_detail
 from schemas_sdl_builders import (
     EmailAuthResult, BlacklistResult, PortScanResult,
@@ -64,12 +65,11 @@ async def fn_email_check(ctx, params: EmailCheckParams) -> ActionResult:
         resp = await ctx.http.post(f"{base}/v1/email/dmarc/generate",
                                    json={"policy": params.dmarc_policy, "pct": 100, "rua": "",
                                          "aspf": "r", "adkim": "r", "subdomain_policy": ""})
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "Email check failed", retryable=False)
+    data, err = unwrap(resp, "Email check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_email_auth(params.domain, params.check_type, body["data"]),
+        data=build_email_auth(params.domain, params.check_type, data),
         summary=f"Email {params.check_type} for {params.domain}",
     )
 
@@ -91,14 +91,13 @@ class BlacklistParams(BaseModel):
 async def fn_blacklist_check(ctx, params: BlacklistParams) -> ActionResult:
     """Spam blacklist check — IP against 30 DNSBL lists (Spamhaus, SpamCop, Barracuda) or domain against SURBL."""
     resp = await ctx.http.get(f"{WEB_TOOLS_URL}/v1/blacklist/{params.target_type}/{params.target}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "Blacklist check failed", retryable=False)
+    data, err = unwrap(resp, "Blacklist check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_blacklist(params.target, params.target_type, body["data"]),
+        data=build_blacklist(params.target, params.target_type, data),
         summary=f"Blacklist check for {params.target}",
-        ui=blacklist_ui(params.target, body["data"] or {}),
+        ui=blacklist_ui(params.target, data or {}),
     )
 
 
@@ -127,12 +126,11 @@ async def fn_port_scan(ctx, params: PortScanParams) -> ActionResult:
         resp = await ctx.http.get(f"{base}/v1/ports/scan/{params.host}",
                                   params={"preset": params.preset})
         summary = f"Port scan ({params.preset}) on {params.host}"
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "Port scan failed", retryable=False)
+    data, err = unwrap(resp, "Port scan failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_port_scan(params.host, body["data"]),
+        data=build_port_scan(params.host, data),
         summary=summary,
     )
 
@@ -156,12 +154,11 @@ async def fn_smtp_test(ctx, params: SmtpTestParams) -> ActionResult:
                                   params={"port": params.port})
     else:
         resp = await ctx.http.get(f"{base}/v1/smtp/test/{params.target}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "SMTP test failed", retryable=False)
+    data, err = unwrap(resp, "SMTP test failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_smtp(params.target, body["data"]),
+        data=build_smtp(params.target, data),
         summary=f"SMTP test for {params.target}",
     )
 
@@ -210,12 +207,11 @@ async def fn_geo_check(ctx, params: GeoCheckParams) -> ActionResult:
                                   params={"type": params.dns_type})
     else:
         resp = await ctx.http.get(f"{base}/v1/geo/{params.check_type}/{params.target}")
-    resp.raise_for_status()
-    body = resp.json()
-    if not body.get("success"):
-        return ActionResult.error(body.get("error") or "Geo check failed", retryable=False)
+    data, err = unwrap(resp, "Geo check failed")
+    if err:
+        return ActionResult.error(err, retryable=False)
     return ActionResult.success(
-        data=build_geo(params.target, params.check_type, body["data"]),
+        data=build_geo(params.target, params.check_type, data),
         summary=f"Geo {params.check_type} for {params.target} (EU/US/SG/MD)",
     )
 

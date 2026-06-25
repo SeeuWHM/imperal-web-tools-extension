@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.8.0] — 2026-06-25 — Web research (web_search + read_url) + envelope hardening
+
+### Added
+- **Web research tools** backed by the `web-tools-api` microservice (Exa search + SSRF-guarded reader):
+  - `web_search` — find pages for a query; returns candidate cards (`url`/`title`/`snippet`/`score`) as a real
+    SDL `EntityList[SearchResultItem]`. Does NOT read content — the LLM picks which url(s) to read next.
+  - `read_url` — read ONE page into clean Markdown (`PageContent` entity: source, lang, token_count, metadata).
+  - Two-layer design: the backend is a dumb fetcher, the LLM is the orchestrator. The resilience loop
+    ("a page errored → read the next candidate") lives in the LLM — `read_url` returns a retryable error FACT
+    on a dead page instead of raising, so one bad page never aborts the research.
+  - New module `handlers_search.py`; SDL entities `SearchResultItem` / `SearchResultList` / `PageContent`.
+
+### Changed (envelope hardening — old endpoints, 1:1 with the new backend error contract)
+- New shared `backend.py`: `unwrap(resp, fallback)` / `error_message(body, fallback)` normalize the
+  `{success, data|error}` envelope — handles HTTP 4xx/5xx with a typed envelope AND `error` arriving as
+  either a string (legacy) or `{code, message}` (current backend), and never raises on HTTP status.
+- Retrofitted all diagnostic handlers (`handlers.py`, `handlers_diag.py`, `handlers_quick.py`) off
+  `resp.raise_for_status()` + ad-hoc `body.get("error")` onto `unwrap()` — a backend hiccup is now a clean
+  `ActionResult.error` instead of an unhandled exception that crashes the chat turn.
+- `handlers_scan.py` / `handlers_bulk.py`: failed sub-checks now carry the backend's error reason
+  (via `error_message`) instead of a bare `unknown` with no explanation.
+
+### Build
+- Manifest rebuilt with `imperal build` (SDK 5.7.3): `sdk_version` 5.3.0 → 5.7.3; 33 → 35 tools.
+
 ## [1.7.0] — 2026-06-16 — SDK 5.3.0, Per Action pricing
 
 ### Changed

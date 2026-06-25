@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app import chat, WEB_TOOLS_URL
 from imperal_sdk import ActionResult
+from backend import error_message
 from schemas_sdl_builders import MonitorScanResult, build_monitor_scan
 
 
@@ -77,8 +78,11 @@ async def _run_domain_checks(ctx, domain: str, checks: list[str]) -> dict:
             try:
                 resp = await ctx.http.get(urls[check], params=query.get(check))
                 body = resp.json()
-                d = body.get("data") if body.get("success") else None
-                return check, {"status": _check_status(check, d or {}), "data": d}
+                if body.get("success"):
+                    d = body.get("data")
+                    return check, {"status": _check_status(check, d or {}), "data": d}
+                return check, {"status": "unknown", "data": None,
+                               "error": error_message(body, "check failed")}
             except Exception as exc:
                 return check, {"status": "unknown", "data": None, "error": str(exc)}
 
