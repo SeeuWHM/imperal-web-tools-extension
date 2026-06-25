@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.11.0] — 2026-06-25 — Web research removed → graduated to the `web-search` system extension
+
+Web research (`web_search`, `read_url`, `read_url_rendered`, `read_document`, `set_web_read_policy`)
+has moved out of web-tools into its own first-party **system** extension `imperal-ext-web-search`
+(hidden, auto-installed for every chat). web-tools is back to pure domain diagnostics + monitors —
+no duplicate web-search tools for the LLM to confuse.
+
+### Removed
+- `handlers_search.py` (5 tools) · SDL `SearchResultItem`/`SearchResultList`/`PageContent` + their builders.
+- Web-research lines from `app.py` (Extension + ChatExtension descriptions) and `main.py` imports.
+
+### Kept
+- `backend.py` (`unwrap`/`error_message`) — still used by the hardened diagnostic endpoints (handlers.py /
+  handlers_diag.py / handlers_quick.py / handlers_scan.py / handlers_bulk.py).
+
+### Build
+- Manifest rebuilt (SDK 5.7.3): 38 → **33 tools** (32 functions + skeleton).
+
 ## [1.10.0] — 2026-06-25 — Token economy: read `mode`, content_hash/outline/tables, search recency
 
 Brings the extension 1:1 with the web-search↔Webbee integration spec

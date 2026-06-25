@@ -15,7 +15,7 @@ for _m in list(sys.modules):
               "handlers", "handlers_diag", "handlers_groups",
               "handlers_profiles", "handlers_monitors", "handlers_scan",
               "handlers_ui", "handlers_quick", "handlers_bulk", "handlers_audit",
-              "handlers_schedule", "handlers_search",
+              "handlers_schedule",
               "skeleton", "panels_ui", "panels_ui_base", "panels_ui_items",
               "panels_left", "panels_overview", "panels_detail", "panels_setup",
               "panels"):
@@ -38,7 +38,6 @@ import handlers_quick          # noqa: F401
 import handlers_bulk           # noqa: F401
 import handlers_audit          # noqa: F401
 import handlers_schedule      # noqa: F401
-import handlers_search        # noqa: F401
 import skeleton               # noqa: F401
 import panels_ui              # noqa: F401
 import panels_setup           # noqa: F401

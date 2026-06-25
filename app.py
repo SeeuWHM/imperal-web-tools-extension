@@ -10,13 +10,12 @@ from imperal_sdk.chat import ChatExtension
 
 ext = Extension(
     "web-tools",
-    version="1.10.0",
+    version="1.11.0",
     display_name="Web Tools",
     description=(
         "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, "
         "WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, "
-        "SMTP test, recurring automated monitors with alerts. Plus web research — "
-        "search the web and read pages into clean Markdown."
+        "SMTP test, recurring automated monitors with alerts."
     ),
     icon="icon.svg",
     actions_explicit=True,
@@ -51,16 +50,7 @@ chat = ChatExtension(
         "create_monitor_full=set up automated domain monitoring; "
         "list_monitors=show existing scheduled monitors; "
         "run_scan=trigger immediate scan on an existing monitor; "
-        "run_scan_tool=bulk scan up to 10 domains; run_ip_scan=bulk scan up to 5 IPs. "
-        "3) WEB RESEARCH (read the live web, not domain diagnostics): "
-        "web_search=find pages for a query — returns candidate cards (url+title+snippet), does NOT read them; "
-        "read_url=cheap reader, ONE page into clean Markdown (always try first); "
-        "read_url_rendered=⚠️TOKEN-HEAVY headless-Chromium reader for JS/bot-protected pages; "
-        "read_document=⚠️TOKEN-HEAVY reader for Office docs (.docx/.xlsx/.pptx); "
-        "set_web_read_policy=remember the user's heavy-read preference (ask/always/never_heavy). "
-        "Loop: web_search → pick url(s) → read_url each; if read_url errors, read the NEXT candidate. "
-        "If read_url says a page is blocked or is an Office doc, surface what you already found and ASK "
-        "before using the heavy readers (they cost tokens) — unless the user said 'always read'."
+        "run_scan_tool=bulk scan up to 10 domains; run_ip_scan=bulk scan up to 5 IPs."
     ),
 )
 
