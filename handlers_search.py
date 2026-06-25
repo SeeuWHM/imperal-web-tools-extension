@@ -55,10 +55,11 @@ def _escalation_target(code: str | None, url: str) -> str | None:
     return None
 
 
-async def _post_read(ctx, path: str, url: str, max_tokens: int, query: str | None, timeout: int):
+async def _post_read(ctx, path: str, url: str, max_tokens: int,
+                     query: str | None, mode: str, timeout: int):
     resp = await ctx.http.post(
         f"{WEB_TOOLS_URL}{path}",
-        json={"url": url, "max_tokens": max_tokens, "query": query},
+        json={"url": url, "max_tokens": max_tokens, "query": query, "mode": mode},
         timeout=timeout,
     )
     return unwrap_full(resp, f"Could not read {url}")
@@ -86,7 +87,8 @@ async def _get_read_policy(ctx) -> str:
 
 async def _heavy_read(ctx, path: str, params: "ReadUrlParams") -> ActionResult:
     try:
-        data, _code, err = await _post_read(ctx, path, params.url, params.max_tokens, params.query, 60)
+        data, _code, err = await _post_read(
+            ctx, path, params.url, params.max_tokens, params.query, params.mode, 60)
     except Exception as exc:
         return ActionResult.error(
             f"The heavy reader could not reach {params.url} ({exc}). Try the next result.", retryable=True)
@@ -103,22 +105,34 @@ class WebSearchParams(BaseModel):
     num_results: int = Field(default=10, ge=1, le=50, description="How many candidate results to return.")
     include_domains: list[str] | None = Field(
         default=None, description="Restrict results to these domains (e.g. ['docs.python.org']).")
+    recency_days: int | None = Field(
+        default=None, ge=1, le=3650,
+        description="Only results published within the last N days. REQUIRED for 'today'/'latest'/'recent' "
+                    "queries — Exa ranking alone is NOT recency-sorted.")
+    type: Literal["auto", "fast", "instant", "deep-lite"] = Field(
+        default="auto", description="Exa search type — leave 'auto' unless you need speed (fast/instant).")
+    category: Literal["news", "research paper", "company", "pdf", "github", "tweet",
+                      "personal site", "linkedin profile", "financial report"] | None = Field(
+        default=None, description="Bias results toward a content category when the query clearly targets one.")
 
 
 @chat.function("web_search", action_type="read",
                data_model=SearchResultList,
                description="WEB SEARCH — find pages for a query. FIRST step of any web research: returns "
-                           "candidate cards (url, title, snippet, score) but does NOT read page content. "
-                           "Inspect the cards, pick the relevant url(s), then call read_url on them. Run "
-                           "web_search again with a different phrasing if the first results are thin. Use "
-                           "include_domains to focus on a specific site. NOT for diagnosing a domain you own "
+                           "candidate cards (url, title, snippet, score) but does NOT read page content. The "
+                           "`snippet` is an LLM-ready excerpt and is OFTEN ENOUGH to answer — read pages only "
+                           "when you need more. Then read just the 2–3 BEST urls (not all results). For "
+                           "'today'/'latest'/'recent' queries you MUST pass recency_days (ranking isn't "
+                           "recency-sorted). Use include_domains to focus a site, category to bias content type. "
+                           "Re-run with new wording if results are thin. NOT for diagnosing a domain you own "
                            "— that's domain_full_check / dns_lookup / etc.")
 async def fn_web_search(ctx, params: WebSearchParams) -> ActionResult:
     """Web search — returns candidate cards for the LLM to choose from."""
     resp = await ctx.http.post(
         f"{WEB_TOOLS_URL}/v1/search",
         json={"query": params.query, "num_results": params.num_results,
-              "include_domains": params.include_domains},
+              "include_domains": params.include_domains, "recency_days": params.recency_days,
+              "type": params.type, "category": params.category},
         timeout=30,
     )
     data, err = unwrap(resp, "Web search failed")
@@ -139,21 +153,33 @@ class ReadUrlParams(BaseModel):
                             description="Token budget for the extracted content.")
     query: str | None = Field(default=None,
                               description="Optional: focus extraction/truncation on this question.")
+    mode: Literal["full", "main", "outline", "tables", "metadata"] = Field(
+        default="full",
+        description="TOKEN ECONOMY — what to return. full=whole page (expensive); main=prose only; "
+                    "outline=heading tree (~100 tok, 'which section?'); tables=only tables (price/data pages); "
+                    "metadata=no body (~0 tok, 'is it worth reading?'). Triage with metadata/outline FIRST, "
+                    "then full/tables on the winner.")
 
 
 @chat.function("read_url", action_type="read",
                data_model=PageContent,
                description="READ ONE web page into clean Markdown — the cheap, default reader; ALWAYS try this "
-                           "before the heavy readers. Returns extracted text + metadata. If it errors on a url, "
-                           "read the NEXT candidate from web_search — one dead page must not end the task. If a "
-                           "page is blocked (needs JavaScript / bot-protection) or is an Office document, this "
-                           "returns a note pointing to the TOKEN-HEAVY read_url_rendered / read_document tools: "
-                           "tell the user what you already found and ask before spending tokens on them (unless "
-                           "the user has set the read policy to 'always', in which case this reader auto-reads).")
+                           "before the heavy readers. TOKEN ECONOMY via `mode`: triage with mode='metadata' "
+                           "(~0 tok: worth reading?) or mode='outline' (~100 tok: which section?) BEFORE pulling "
+                           "mode='full'; use mode='tables' for price/data pages. Each result includes "
+                           "`content_hash` — if you already read identical content this conversation, DON'T "
+                           "re-read it, refer to what you have (two urls can share a hash). Also returns `outline` "
+                           "and structured `tables` — use those, don't parse tables out of the text. If it errors, "
+                           "read the NEXT candidate — one dead page must not end the task. If a page is blocked "
+                           "(JS/bot-protection) or is an Office doc, this returns a note pointing to the "
+                           "TOKEN-HEAVY read_url_rendered / read_document tools: tell the user what you already "
+                           "found and ask before spending tokens (unless the read policy is 'always' — then it "
+                           "auto-reads).")
 async def fn_read_url(ctx, params: ReadUrlParams) -> ActionResult:
     """Cheap reader; a blocked/heavy page becomes an escalation FACT (or auto-reads under 'always')."""
     try:
-        data, code, err = await _post_read(ctx, "/v1/read", params.url, params.max_tokens, params.query, 40)
+        data, code, err = await _post_read(
+            ctx, "/v1/read", params.url, params.max_tokens, params.query, params.mode, 40)
     except Exception as exc:
         return ActionResult.error(
             f"Could not reach the reader for {params.url} ({exc}). Try the next result.", retryable=True)
@@ -173,7 +199,8 @@ async def fn_read_url(ctx, params: ReadUrlParams) -> ActionResult:
     if policy == "always":                           # deterministic auto-escalation — no re-ask
         path = _RENDER_PATH if target == "rendered" else _DOCUMENT_PATH
         try:
-            hdata, _hc, herr = await _post_read(ctx, path, params.url, params.max_tokens, params.query, 60)
+            hdata, _hc, herr = await _post_read(
+                ctx, path, params.url, params.max_tokens, params.query, params.mode, 60)
         except Exception as exc:
             return ActionResult.error(
                 f"The heavy reader could not reach {params.url} ({exc}). Try the next result.", retryable=True)

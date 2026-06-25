@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.10.0] — 2026-06-25 — Token economy: read `mode`, content_hash/outline/tables, search recency
+
+Brings the extension 1:1 with the web-search↔Webbee integration spec
+(`extensions/web-search-webbee-integration.md`, backend ≥ web-search-v0.7.0).
+
+### Added — readers
+- **`mode`** on all readers (`full` | `main` | `outline` | `tables` | `metadata`) — the token-economy lever.
+  Triage with `metadata` (~0 tok) / `outline` (~100 tok) before pulling `full`; `tables` for price/data pages.
+- **`PageContent`** now surfaces the full read contract: `content_hash` (sha256[:32] — DEDUP key),
+  `word_count`, `outline` (heading tree), `tables` (structured) + enriched metadata.
+- Descriptions teach the reading ladder (snippet → metadata/outline triage → full/tables on the 2–3 winners)
+  and tell Webby to dedup on `content_hash` (don't re-ingest identical content).
+
+### Added — search
+- **`recency_days`** (required for 'today'/'latest' — Exa isn't recency-sorted), **`type`**, **`category`**.
+
+### Notes
+- Dedup is exposed as a FACT (`content_hash`), not enforced in the extension: the SDK Context has no
+  conversation id and `ctx.cache` is per-user+TTL, so per-conversation `seen_hashes` belongs to Webby/kernel
+  (which the integration spec targets). The extension's job is to surface the hash.
+- Manifest rebuilt (SDK 5.7.3): tools unchanged at 38; params/return contracts enriched.
+
 ## [1.9.0] — 2026-06-25 — Heavy readers (Chromium + Office docs) + per-user read policy
 
 ### Added

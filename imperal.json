@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.7.3",
   "app_id": "web-tools",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "name": "Web Tools",
   "description": "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
   "icon": "icon.svg",
@@ -7737,7 +7737,7 @@
     },
     {
       "name": "web_search",
-      "description": "WEB SEARCH — find pages for a query. FIRST step of any web research: returns candidate cards (url, title, snippet, score) but does NOT read page content. Inspect the cards, pick the relevant url(s), then call read_url on them. Run web_search again with a different phrasing if the first results are thin. Use include_domains to focus on a specific site. NOT for diagnosing a domain you own — that's domain_full_check / dns_lookup / etc.",
+      "description": "WEB SEARCH — find pages for a query. FIRST step of any web research: returns candidate cards (url, title, snippet, score) but does NOT read page content. The `snippet` is an LLM-ready excerpt and is OFTEN ENOUGH to answer — read pages only when you need more. Then read just the 2–3 BEST urls (not all results). For 'today'/'latest'/'recent' queries you MUST pass recency_days (ranking isn't recency-sorted). Use include_domains to focus a site, category to bias content type. Re-run with new wording if results are thin. NOT for diagnosing a domain you own — that's domain_full_check / dns_lookup / etc.",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -7774,6 +7774,57 @@
             "default": null,
             "description": "Restrict results to these domains (e.g. ['docs.python.org']).",
             "title": "Include Domains"
+          },
+          "recency_days": {
+            "anyOf": [
+              {
+                "maximum": 3650,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only results published within the last N days. REQUIRED for 'today'/'latest'/'recent' queries — Exa ranking alone is NOT recency-sorted.",
+            "title": "Recency Days"
+          },
+          "type": {
+            "default": "auto",
+            "description": "Exa search type — leave 'auto' unless you need speed (fast/instant).",
+            "enum": [
+              "auto",
+              "fast",
+              "instant",
+              "deep-lite"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "news",
+                  "research paper",
+                  "company",
+                  "pdf",
+                  "github",
+                  "tweet",
+                  "personal site",
+                  "linkedin profile",
+                  "financial report"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Bias results toward a content category when the query clearly targets one.",
+            "title": "Category"
           }
         },
         "required": [
@@ -7985,7 +8036,7 @@
     },
     {
       "name": "read_url",
-      "description": "READ ONE web page into clean Markdown — the cheap, default reader; ALWAYS try this before the heavy readers. Returns extracted text + metadata. If it errors on a url, read the NEXT candidate from web_search — one dead page must not end the task. If a page is blocked (needs JavaScript / bot-protection) or is an Office document, this returns a note pointing to the TOKEN-HEAVY read_url_rendered / read_document tools: tell the user what you already found and ask before spending tokens on them (unless the user has set the read policy to 'always', in which case this reader auto-reads).",
+      "description": "READ ONE web page into clean Markdown — the cheap, default reader; ALWAYS try this before the heavy readers. TOKEN ECONOMY via `mode`: triage with mode='metadata' (~0 tok: worth reading?) or mode='outline' (~100 tok: which section?) BEFORE pulling mode='full'; use mode='tables' for price/data pages. Each result includes `content_hash` — if you already read identical content this conversation, DON'T re-read it, refer to what you have (two urls can share a hash). Also returns `outline` and structured `tables` — use those, don't parse tables out of the text. If it errors, read the NEXT candidate — one dead page must not end the task. If a page is blocked (JS/bot-protection) or is an Office doc, this returns a note pointing to the TOKEN-HEAVY read_url_rendered / read_document tools: tell the user what you already found and ask before spending tokens (unless the read policy is 'always' — then it auto-reads).",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -8019,6 +8070,19 @@
             "default": null,
             "description": "Optional: focus extraction/truncation on this question.",
             "title": "Query"
+          },
+          "mode": {
+            "default": "full",
+            "description": "TOKEN ECONOMY — what to return. full=whole page (expensive); main=prose only; outline=heading tree (~100 tok, 'which section?'); tables=only tables (price/data pages); metadata=no body (~0 tok, 'is it worth reading?'). Triage with metadata/outline FIRST, then full/tables on the winner.",
+            "enum": [
+              "full",
+              "main",
+              "outline",
+              "tables",
+              "metadata"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [
@@ -8177,6 +8241,19 @@
             "title": "Token Count",
             "x-sdl-role": "wt.token_count"
           },
+          "word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Word Count",
+            "x-sdl-role": "wt.word_count"
+          },
           "truncated": {
             "anyOf": [
               {
@@ -8189,6 +8266,47 @@
             "default": null,
             "title": "Truncated",
             "x-sdl-role": "wt.truncated"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Hash",
+            "x-sdl-role": "wt.content_hash"
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outline",
+            "x-sdl-role": "wt.outline"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tables",
+            "x-sdl-role": "wt.tables"
           },
           "page_metadata": {
             "anyOf": [
@@ -8255,6 +8373,19 @@
             "default": null,
             "description": "Optional: focus extraction/truncation on this question.",
             "title": "Query"
+          },
+          "mode": {
+            "default": "full",
+            "description": "TOKEN ECONOMY — what to return. full=whole page (expensive); main=prose only; outline=heading tree (~100 tok, 'which section?'); tables=only tables (price/data pages); metadata=no body (~0 tok, 'is it worth reading?'). Triage with metadata/outline FIRST, then full/tables on the winner.",
+            "enum": [
+              "full",
+              "main",
+              "outline",
+              "tables",
+              "metadata"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [
@@ -8413,6 +8544,19 @@
             "title": "Token Count",
             "x-sdl-role": "wt.token_count"
           },
+          "word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Word Count",
+            "x-sdl-role": "wt.word_count"
+          },
           "truncated": {
             "anyOf": [
               {
@@ -8425,6 +8569,47 @@
             "default": null,
             "title": "Truncated",
             "x-sdl-role": "wt.truncated"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Hash",
+            "x-sdl-role": "wt.content_hash"
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outline",
+            "x-sdl-role": "wt.outline"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tables",
+            "x-sdl-role": "wt.tables"
           },
           "page_metadata": {
             "anyOf": [
@@ -8491,6 +8676,19 @@
             "default": null,
             "description": "Optional: focus extraction/truncation on this question.",
             "title": "Query"
+          },
+          "mode": {
+            "default": "full",
+            "description": "TOKEN ECONOMY — what to return. full=whole page (expensive); main=prose only; outline=heading tree (~100 tok, 'which section?'); tables=only tables (price/data pages); metadata=no body (~0 tok, 'is it worth reading?'). Triage with metadata/outline FIRST, then full/tables on the winner.",
+            "enum": [
+              "full",
+              "main",
+              "outline",
+              "tables",
+              "metadata"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [
@@ -8649,6 +8847,19 @@
             "title": "Token Count",
             "x-sdl-role": "wt.token_count"
           },
+          "word_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Word Count",
+            "x-sdl-role": "wt.word_count"
+          },
           "truncated": {
             "anyOf": [
               {
@@ -8661,6 +8872,47 @@
             "default": null,
             "title": "Truncated",
             "x-sdl-role": "wt.truncated"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Hash",
+            "x-sdl-role": "wt.content_hash"
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outline",
+            "x-sdl-role": "wt.outline"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tables",
+            "x-sdl-role": "wt.tables"
           },
           "page_metadata": {
             "anyOf": [

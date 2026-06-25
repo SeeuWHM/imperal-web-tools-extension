@@ -207,5 +207,9 @@ class PageContent(sdl.Entity):
     content_type: str | None = sdl_field(role="wt.content_type")
     lang: str | None = sdl_field(role="wt.lang")
     token_count: int | None = sdl_field(role="wt.token_count")
+    word_count: int | None = sdl_field(role="wt.word_count")
     truncated: bool | None = sdl_field(role="wt.truncated")
+    content_hash: str | None = sdl_field(role="wt.content_hash")   # sha256[:32] of content — dedup key
+    outline: list | None = sdl_field(role="wt.outline")           # [{level, text}] full heading tree
+    tables: list | None = sdl_field(role="wt.tables")             # [{headers, rows}] structured tables
     page_metadata: dict | None = sdl_field(role="wt.page_metadata")

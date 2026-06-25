@@ -310,6 +310,8 @@ def build_page_content(d: dict) -> PageContent:
     url = d.get("url") or ""
     final_url = d.get("final_url") or url
     meta = d.get("metadata")
+    outline = d.get("outline")
+    tables = d.get("tables")
     return PageContent(
         id=final_url or url or "page",
         title=(d.get("title") or final_url or url or "page")[:300],
@@ -321,6 +323,10 @@ def build_page_content(d: dict) -> PageContent:
         content_type=d.get("content_type"),
         lang=d.get("lang"),
         token_count=d.get("token_count") or 0,
+        word_count=d.get("word_count"),
         truncated=bool(d.get("truncated", False)),
+        content_hash=d.get("content_hash"),
+        outline=outline if isinstance(outline, list) and outline else None,
+        tables=tables if isinstance(tables, list) and tables else None,
         page_metadata=meta if isinstance(meta, dict) and meta else None,
     )
