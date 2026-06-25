@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.9.0] — 2026-06-25 — Heavy readers (Chromium + Office docs) + per-user read policy
+
+### Added
+- **`read_url_rendered`** ⚠️ TOKEN-HEAVY — headless-Chromium reader (`/v1/read_rendered`) for JS / bot-protected
+  pages that the cheap `read_url` can't open. On-demand only.
+- **`read_document`** ⚠️ TOKEN-HEAVY — Office document reader (`/v1/read_document`, `.docx/.xlsx/.pptx` → Markdown).
+- **`set_web_read_policy(ask|always|never_heavy)`** — persists a per-user heavy-read preference in `wt_prefs`.
+- `query` param added to all three readers (focus extraction/truncation on a question — backend supports it).
+
+### Behaviour — cost-aware escalation (deterministic)
+- When `read_url` fails on a page a heavy reader could open, it branches on the per-user policy:
+  - **ask** (default): returns an escalation FACT (which heavy tool + that it costs tokens) so Webby surfaces
+    what it already found and asks the user before spending tokens.
+  - **always**: `read_url` escalates to the right heavy reader itself (Chromium for CHALLENGE_BLOCKED/403/empty,
+    document for Office) — deterministic, no re-ask.
+  - **never_heavy**: reports unreadable; Webby uses what search/`read_url` already returned.
+- Escalation target derived from the backend error code (`CHALLENGE_BLOCKED`/`UPSTREAM_HTTP_ERROR`/`EXTRACTION_EMPTY`
+  → rendered; `UNSUPPORTED_CONTENT_TYPE` + Office URL → document). `ROBOTS_DISALLOWED`/`FETCH_TIMEOUT`/`TOO_LARGE`
+  never escalate (a heavy reader won't help).
+- `backend.py`: added `unwrap_full()` / `error_code()` so handlers can branch on WHY a read failed.
+
+### Build
+- Manifest rebuilt (SDK 5.7.3): 35 → 38 tools (37 functions), +event `web_read_policy.changed`.
+
 ## [1.8.0] — 2026-06-25 — Web research (web_search + read_url) + envelope hardening
 
 ### Added

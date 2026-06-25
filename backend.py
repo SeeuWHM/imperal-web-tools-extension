@@ -29,18 +29,34 @@ def error_message(body: Any, fallback: str) -> str:
     return fallback
 
 
+def error_code(body: Any) -> str | None:
+    """Extract the backend error code ({code,message} shape only), else None."""
+    err = body.get("error") if isinstance(body, dict) else None
+    return err.get("code") if isinstance(err, dict) else None
+
+
+def unwrap_full(resp, fallback: str) -> tuple[dict | None, str | None, str | None]:
+    """Return (data, error_code, error_msg). data on success; code+msg on failure.
+
+    Never raises on HTTP status. The code lets callers branch on WHY a read failed
+    (e.g. escalate a CHALLENGE_BLOCKED page to the heavy reader).
+    """
+    try:
+        body = resp.json()
+    except Exception:
+        status = getattr(resp, "status_code", "?")
+        return None, None, f"{fallback} (HTTP {status}, non-JSON response)"
+    if isinstance(body, dict) and body.get("success"):
+        data = body.get("data")
+        return (data if isinstance(data, dict) else {}), None, None
+    return None, error_code(body), error_message(body, fallback)
+
+
 def unwrap(resp, fallback: str) -> tuple[dict | None, str | None]:
     """Return (data, None) on success, (None, error_msg) on any failure.
 
     Never raises on HTTP status — a 4xx/5xx envelope is parsed, not thrown, so the
     LLM receives a fact ('this call failed: …') and can decide what to do next.
     """
-    try:
-        body = resp.json()
-    except Exception:
-        code = getattr(resp, "status_code", "?")
-        return None, f"{fallback} (HTTP {code}, non-JSON response)"
-    if isinstance(body, dict) and body.get("success"):
-        data = body.get("data")
-        return (data if isinstance(data, dict) else {}), None
-    return None, error_message(body, fallback)
+    data, _code, err = unwrap_full(resp, fallback)
+    return data, err

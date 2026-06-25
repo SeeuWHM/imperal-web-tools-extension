@@ -2,7 +2,7 @@
   "manifest_schema_version": 3,
   "sdk_version": "5.7.3",
   "app_id": "web-tools",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "name": "Web Tools",
   "description": "Domain health monitoring — DNS, SSL, HTTP headers grade, blacklist 30 DNSBL, WHOIS, SEO, email SPF/DMARC/DKIM, geo probes from 4 regions, port scans, SMTP test, recurring automated monitors with alerts.",
   "icon": "icon.svg",
@@ -7985,7 +7985,7 @@
     },
     {
       "name": "read_url",
-      "description": "READ ONE web page into clean Markdown — the second step of web research, after web_search. Returns extracted text + metadata (title, source, lang, token_count). CRITICAL: if this returns an error for a url, DO NOT abandon the research — call read_url again on the NEXT candidate from web_search. One dead or blocked page must never end the task. Read several pages when one source is not enough.",
+      "description": "READ ONE web page into clean Markdown — the cheap, default reader; ALWAYS try this before the heavy readers. Returns extracted text + metadata. If it errors on a url, read the NEXT candidate from web_search — one dead page must not end the task. If a page is blocked (needs JavaScript / bot-protection) or is an Office document, this returns a note pointing to the TOKEN-HEAVY read_url_rendered / read_document tools: tell the user what you already found and ask before spending tokens on them (unless the user has set the read policy to 'always', in which case this reader auto-reads).",
       "action_type": "read",
       "chain_callable": true,
       "effects": [],
@@ -8006,6 +8006,19 @@
             "minimum": 200,
             "title": "Max Tokens",
             "type": "integer"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional: focus extraction/truncation on this question.",
+            "title": "Query"
           }
         },
         "required": [
@@ -8201,6 +8214,606 @@
         "x-sdl": "entity"
       },
       "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "read_url_rendered",
+      "description": "⚠️ TOKEN-HEAVY, on-demand. Read a page in a real headless Chromium browser — for pages the normal read_url could NOT open because they need JavaScript or are behind bot-protection (read_url returned CHALLENGE_BLOCKED / 403 / empty). Slow and consumes many tokens. Use ONLY for an IMPORTANT page AFTER read_url failed, and prefer to ask the user first unless they set the read policy to 'always'. Never use as the first reader — always try read_url first.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Read-one-page parameters.",
+        "properties": {
+          "url": {
+            "description": "URL to read (http/https).",
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "max_tokens": {
+            "default": 8000,
+            "description": "Token budget for the extracted content.",
+            "maximum": 32000,
+            "minimum": 200,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional: focus extraction/truncation on this question.",
+            "title": "Query"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ReadUrlParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "A page read into clean Markdown + extraction metadata.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "page_content",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url",
+            "x-sdl-role": "wt.url"
+          },
+          "final_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Final Url",
+            "x-sdl-role": "wt.final_url"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content",
+            "x-sdl-role": "wt.content"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source",
+            "x-sdl-role": "wt.source"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Type",
+            "x-sdl-role": "wt.content_type"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lang",
+            "x-sdl-role": "wt.lang"
+          },
+          "token_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Count",
+            "x-sdl-role": "wt.token_count"
+          },
+          "truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Truncated",
+            "x-sdl-role": "wt.truncated"
+          },
+          "page_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page Metadata",
+            "x-sdl-role": "wt.page_metadata"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PageContent",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "read_document",
+      "description": "⚠️ TOKEN-HEAVY, on-demand. Read an Office document (.docx / .xlsx / .pptx) at a URL into Markdown. Use ONLY when the url points to such a document (read_url returns UNSUPPORTED_CONTENT_TYPE for these). Large spreadsheets/decks consume many tokens — prefer to ask the user first unless the read policy is 'always'. Not for normal web pages (use read_url) or PDFs (read_url already handles PDF).",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Read-one-page parameters.",
+        "properties": {
+          "url": {
+            "description": "URL to read (http/https).",
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "max_tokens": {
+            "default": 8000,
+            "description": "Token budget for the extracted content.",
+            "maximum": 32000,
+            "minimum": 200,
+            "title": "Max Tokens",
+            "type": "integer"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional: focus extraction/truncation on this question.",
+            "title": "Query"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ReadUrlParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "A page read into clean Markdown + extraction metadata.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "page_content",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url",
+            "x-sdl-role": "wt.url"
+          },
+          "final_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Final Url",
+            "x-sdl-role": "wt.final_url"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content",
+            "x-sdl-role": "wt.content"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source",
+            "x-sdl-role": "wt.source"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Type",
+            "x-sdl-role": "wt.content_type"
+          },
+          "lang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lang",
+            "x-sdl-role": "wt.lang"
+          },
+          "token_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Token Count",
+            "x-sdl-role": "wt.token_count"
+          },
+          "truncated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Truncated",
+            "x-sdl-role": "wt.truncated"
+          },
+          "page_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page Metadata",
+            "x-sdl-role": "wt.page_metadata"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PageContent",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "tool_web_tools_chat"
+    },
+    {
+      "name": "set_web_read_policy",
+      "description": "Set the user's standing policy for the TOKEN-HEAVY web readers (read_url_rendered / read_document). Call when the user expresses a preference: 'читай всегда' / 'always read' / 'don't ask just read' → 'always'; 'не читай тяжёлое' / 'stop reading heavy pages' → 'never_heavy'; 'ask me first' → 'ask'. Persists per-user across sessions.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "update:web_read_policy"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "Web read policy parameters.",
+        "properties": {
+          "policy": {
+            "description": "ask=warn+ask before heavy reads (default); always=auto-read blocked/Office pages; never_heavy=never use the heavy readers.",
+            "enum": [
+              "ask",
+              "always",
+              "never_heavy"
+            ],
+            "title": "Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy"
+        ],
+        "title": "ReadPolicyParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "Generic CRUD confirmation — create/update/delete operations.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "wt_op",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "monitors_removed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monitors Removed",
+            "x-sdl-role": "wt.monitors_removed"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "WtOpResult",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "web_read_policy.changed",
       "background": false,
       "long_running": false,
       "scopes": [],
