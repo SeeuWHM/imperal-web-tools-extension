@@ -1,6 +1,6 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.7.3",
+  "sdk_version": "5.9.9",
   "app_id": "web-tools",
   "version": "1.11.0",
   "name": "Web Tools",
@@ -7761,31 +7761,46 @@
       "panel_id": "secrets",
       "slot": "overlay",
       "title": "Secrets",
-      "tree": {}
+      "tree": {},
+      "icon": "Key",
+      "refresh": "manual",
+      "center_overlay": false
     },
     {
       "panel_id": "sidebar",
       "slot": "left",
       "title": "Web Tools",
-      "tree": {}
+      "tree": {},
+      "icon": "Globe",
+      "refresh": "on_event:scan.tool",
+      "center_overlay": false
     },
     {
       "panel_id": "overview",
       "slot": "right",
       "title": "Domain Health",
-      "tree": {}
+      "tree": {},
+      "icon": "Activity",
+      "refresh": "on_event:scan.completed",
+      "center_overlay": false
     },
     {
       "panel_id": "detail",
       "slot": "right",
       "title": "Monitor Detail",
-      "tree": {}
+      "tree": {},
+      "icon": "BarChart2",
+      "refresh": "on_event:scan.completed",
+      "center_overlay": false
     },
     {
       "panel_id": "setup",
       "slot": "overlay",
       "title": "Setup",
-      "tree": {}
+      "tree": {},
+      "icon": "Settings",
+      "refresh": "on_event:group.created,group.updated,group.deleted,profile.created,profile.updated,profile.deleted,monitor.created,monitor.updated,monitor.deleted",
+      "center_overlay": true
     }
   ]
 }
