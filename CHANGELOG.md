@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-18 — SDK 5.9.9 + English-only tool descriptions (no version bump)
+
+- SDK pin bumped: 5.7.3 → 5.9.9 (README badge only — no `pyproject.toml` in this repo).
+- The only 2 Russian phrases in the whole codebase were example strings embedded inside otherwise-
+  English `@chat.function` descriptions (`handlers.py`'s `dns_lookup`, `handlers_diag.py`'s
+  `geo_check`) — removed, kept the English examples. Workspace-wide policy, all 9 SeeU extensions.
+- No functional/version change — `imperal build`/`imperal validate` re-run clean, 0 errors/warnings.
+
 ## [1.11.0] — 2026-06-25 — Web research removed → graduated to the `web-search` system extension
 
 Web research (`web_search`, `read_url`, `read_url_rendered`, `read_document`, `set_web_read_policy`)

@@ -1,6 +1,6 @@
 # imperal-web-tools-extension
 
-[![Imperal SDK](https://img.shields.io/badge/imperal--sdk-1.5.0-blue)](https://pypi.org/project/imperal-sdk/)
+[![Imperal SDK](https://img.shields.io/badge/imperal--sdk-5.9.9-blue)](https://pypi.org/project/imperal-sdk/)
 [![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/SeeuWHM/imperal-web-tools-extension/releases)
 [![License](https://img.shields.io/badge/license-LGPL--2.1-orange)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Imperal%20Cloud-purple)](https://panel.imperal.io)
@@ -211,5 +211,5 @@ imperal-web-tools-extension/
 
 ## Built with
 
-- [imperal-sdk](https://github.com/imperalcloud/imperal-sdk) 1.5.0
+- [imperal-sdk](https://github.com/imperalcloud/imperal-sdk) 5.9.9
 - [Imperal Cloud](https://panel.imperal.io)
