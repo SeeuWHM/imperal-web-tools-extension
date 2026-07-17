@@ -27,7 +27,7 @@ class DnsLookupParams(BaseModel):
 
 @chat.function("dns_lookup", action_type="read",
                data_model=DomainCheckResult,
-               description="DNS record lookup — use this for ANY request about DNS records of a domain. IMPORTANT: use record_type='all' when user asks for 'all DNS records', 'все записи', 'show all', 'all types' — returns A+AAAA+MX+NS+TXT+CNAME+SRV in ONE call. Use record_type='propagation' + propagation_type='NS' when user says 'NS records updated, did they propagate?', 'did my DNS update?', 'already propagated?'. Use specific type (MX/TXT/NS/A) only when user asks for that specific type. Use authoritative=true to query domain's own NS directly. This function does NOT need any monitors to exist — works on any domain instantly.")
+               description="DNS record lookup — use this for ANY request about DNS records of a domain. IMPORTANT: use record_type='all' when user asks for 'all DNS records', 'show all', 'all types' — returns A+AAAA+MX+NS+TXT+CNAME+SRV in ONE call. Use record_type='propagation' + propagation_type='NS' when user says 'NS records updated, did they propagate?', 'did my DNS update?', 'already propagated?'. Use specific type (MX/TXT/NS/A) only when user asks for that specific type. Use authoritative=true to query domain's own NS directly. This function does NOT need any monitors to exist — works on any domain instantly.")
 async def fn_dns_lookup(ctx, params: DnsLookupParams) -> ActionResult:
     """DNS record lookup — use this for ANY request about DNS records of a domain."""
     base = WEB_TOOLS_URL

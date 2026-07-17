@@ -190,7 +190,7 @@ class GeoCheckParams(BaseModel):
                data_model=GeoCheckResult,
                description="Geographic reachability — probes domain FROM 4 world regions (EU/US/SG/MD). "
                "ROUTING RULES — pick check_type based on what the user is asking: "
-               "→ 'loading speed', 'response time', 'скорость загрузки', 'how fast from X country' → check_type=http (HTTP response time + status per region). "
+               "→ 'loading speed', 'response time', 'how fast from X country' → check_type=http (HTTP response time + status per region). "
                "→ 'latency', 'ping', 'ms from region', 'reachable from X' → check_type=ping (RTT ms + packet loss per region). "
                "→ 'dns from different countries', 'dns propagation per region', 'different DNS results per location' → check_type=dns. "
                "→ 'ssl from different regions', 'ssl reachable from US' → check_type=ssl. "
