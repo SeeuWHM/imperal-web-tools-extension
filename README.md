@@ -1,7 +1,7 @@
 # imperal-web-tools-extension
 
-[![Imperal SDK](https://img.shields.io/badge/imperal--sdk-5.9.9-blue)](https://pypi.org/project/imperal-sdk/)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/SeeuWHM/imperal-web-tools-extension/releases)
+[![Imperal SDK](https://img.shields.io/badge/imperal--sdk-5.9.12-blue)](https://pypi.org/project/imperal-sdk/)
+[![Version](https://img.shields.io/badge/version-1.11.0-green)](https://github.com/SeeuWHM/imperal-web-tools-extension/releases)
 [![License](https://img.shields.io/badge/license-LGPL--2.1-orange)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Imperal%20Cloud-purple)](https://panel.imperal.io)
 
@@ -100,12 +100,26 @@ Built on [Imperal Declarative UI](https://github.com/imperalcloud/imperal-sdk) �
 imperal-web-tools-extension/
 ├── main.py             # Entry point — sys.modules cleanup + imports
 ├── app.py              # Extension setup, ChatExtension, health check
-├── handlers.py         # DNS, SSL, WHOIS, HTTP, Network, SEO
-├── handlers_diag.py    # Email, Blacklist, Ports, SMTP, Geo, Full Audit
-├── handlers_groups.py  # Domain Groups, Check Profiles, Monitors CRUD
-├── handlers_scan.py    # Scan runner, results, quick check
-├── panels.py           # @ext.panel handlers — sidebar + stats
-├── panels_ui.py        # Panel UI helpers — options, labels, list builders
+├── backend.py          # HTTP bridge to whm-web-tools-api (WEB_TOOLS_API_URL)
+├── handlers.py         # DNS, SSL, WHOIS, HTTP, Network, SEO (6 functions)
+├── handlers_diag.py    # Email, Blacklist, Ports, SMTP, Geo, Full Audit (6 functions)
+├── handlers_audit.py   # audit_domains — instant bulk multi-domain audit (1 function)
+├── handlers_bulk.py    # run_scan_tool, run_ip_scan — bulk toggled scans (2 functions)
+├── handlers_groups.py  # Domain Groups CRUD (4 functions)
+├── handlers_profiles.py# Check Profiles CRUD (4 functions)
+├── handlers_monitors.py# Monitors CRUD incl. create_monitor_full (5 functions)
+├── handlers_scan.py    # run_scan, get_scan_results (2 functions)
+├── handlers_quick.py   # quick_check, get_panel_data (2 functions)
+├── handlers_ui.py      # panel-only UI action handlers (buttons/forms, not chat functions)
+├── panels.py           # @ext.panel entry points (left/right/setup slots)
+├── panels_left.py      # left panel — monitors list, quick scan, setup tabs
+├── panels_overview.py  # right panel — stats overview + last quick check
+├── panels_detail.py    # right panel — single-monitor detail view
+├── panels_setup.py     # inline forms: new group / profile / monitor
+├── panels_ui_base.py   # shared low-level UI element builders
+├── panels_ui_items.py  # shared list/row item builders
+├── schemas_sdl.py       # response Pydantic models mirrored for the panel DSL
+├── schemas_sdl_builders.py  # builders turning schemas_sdl models into panel elements
 ├── skeleton.py         # Background skeleton refresh
 ├── system_prompt.txt   # LLM system prompt
 └── imperal.json        # Extension manifest
@@ -113,7 +127,7 @@ imperal-web-tools-extension/
 
 ---
 
-## Function Reference
+## Function Reference (32 functions total)
 
 ### Diagnostics (12 functions)
 
@@ -130,9 +144,17 @@ imperal-web-tools-extension/
 | `smtp_test` | SMTP handshake via MX or direct host — EHLO, STARTTLS, AUTH, banner |
 | `network_check` | ICMP ping, MTR traceroute, PTR reverse DNS, IP geolocation, ASN WHOIS |
 | `geo_check` | Multi-region probe from EU/US/SG/MD — dns / ping / http / ssl / traceroute / full |
-| `domain_full_check` | Full parallel audit — DNS + SSL + WHOIS + HTTP + email + blacklist + geo |
+| `domain_full_check` | Full parallel audit — DNS + SSL + WHOIS + HTTP + email + blacklist + geo, for ONE domain, no setup |
 
-### Monitoring (14 functions)
+### Bulk / Ad-Hoc Scans (3 functions)
+
+| Function | Description |
+|----------|-------------|
+| `audit_domains` | Instant bulk audit of up to 25 domains in ONE call — no monitor/group/profile setup. Default checks dns+ssl+http+email+blacklist; opt in geo/whois/seo/ports/smtp |
+| `run_scan_tool` | Bulk domain scan (max 10) with per-check toggles, results appear in the panel |
+| `run_ip_scan` | Bulk IP scan (max 5) — geolocation/ASN, 29 DNSBL, reverse DNS, open ports, ping from EU/US/SG/MD |
+
+### Monitoring (17 functions)
 
 | Function | Description |
 |----------|-------------|
@@ -141,14 +163,17 @@ imperal-web-tools-extension/
 | `list_domain_groups` | List all domain groups |
 | `delete_domain_group` | Delete group and associated monitors |
 | `create_check_profile` | Define which checks to run per scan (max 5 profiles, 5 checks each) |
+| `update_check_profile` | Rename profile or replace its check type list |
 | `list_check_profiles` | List all check profiles |
 | `delete_check_profile` | Delete profile and associated monitors |
-| `create_monitor` | Link group + profile + interval (max 5 monitors) |
+| `create_monitor` | Link an existing group + profile + interval (max 5 monitors) |
+| `create_monitor_full` | Create group + profile + monitor atomically in one call — name, domains, checks, interval. Preferred over `create_monitor` |
 | `list_monitors` | List monitors with group, profile, interval, last scan time |
+| `update_monitor` | Rename a monitor or change its scan interval |
 | `delete_monitor` | Delete a monitor |
-| `run_scan` | Trigger immediate scan — stores snapshot, fires `scan.completed` event |
-| `get_scan_results` | Get last snapshot — per-domain per-check status and overall verdict |
-| `quick_check` | One-shot check from panel — result stored and shown in right panel |
+| `run_scan` | Trigger immediate scan for an existing monitor — stores snapshot, fires `scan.completed` event |
+| `get_scan_results` | Get last snapshot for an existing monitor — per-domain per-check status and overall verdict |
+| `quick_check` | One-shot ad-hoc check from panel — result stored and shown in right panel |
 | `get_panel_data` | Panel summary for LLM context — monitors, groups, profiles counts and statuses |
 
 ---
@@ -211,5 +236,5 @@ imperal-web-tools-extension/
 
 ## Built with
 
-- [imperal-sdk](https://github.com/imperalcloud/imperal-sdk) 5.9.9
+- [imperal-sdk](https://github.com/imperalcloud/imperal-sdk) 5.9.12
 - [Imperal Cloud](https://panel.imperal.io)
